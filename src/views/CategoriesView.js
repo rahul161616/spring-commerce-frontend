@@ -1,7 +1,16 @@
 import CompactCollection, { CategoryRow, CompactTable, CompactTableHeader } from '../components/shared/CompactCollection';
 import SummaryCard from '../components/shared/SummaryCard';
 
-function CategoriesView({ categories, categorySummary, isLoadingCategories, onAddCategory, parentOptions }) {
+function CategoriesView({
+  categories,
+  categorySummary,
+  isLoadingCategories,
+  onAddCategory,
+  onDeleteCategory,
+  onEditCategory,
+  onViewCategory,
+  parentOptions,
+}) {
   return (
     <>
       <section className="summary-grid">
@@ -22,10 +31,16 @@ function CategoriesView({ categories, categorySummary, isLoadingCategories, onAd
         title="Category Directory"
       >
         <CompactTable>
-          <CompactTableHeader columns={['Category', 'Slug', 'Parent', 'Description', 'State']} />
+          <CompactTableHeader columns={['Category', 'Slug', 'Parent', 'Description', 'State', 'Actions']} />
           <tbody>
             {categories.map((category) => (
-              <CategoryRow key={category.id} category={category} />
+              <CategoryRow
+                key={category.id}
+                category={category}
+                onDelete={onDeleteCategory}
+                onEdit={onEditCategory}
+                onView={onViewCategory}
+              />
             ))}
           </tbody>
         </CompactTable>

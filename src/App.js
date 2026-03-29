@@ -4,6 +4,8 @@ import CategoryComposer from './components/composers/CategoryComposer';
 import ProductComposer from './components/composers/ProductComposer';
 import TagComposer from './components/composers/TagComposer';
 import Sidebar from './components/layout/Sidebar';
+import EntityDetailsModal from './components/shared/EntityDetailsModal';
+import ProductDetailsModal from './components/shared/ProductDetailsModal';
 import Topbar from './components/layout/Topbar';
 import Toast from './components/shared/Toast';
 import CategoriesView from './views/CategoriesView';
@@ -44,9 +46,36 @@ function App() {
   const [isProductComposerOpen, setIsProductComposerOpen] = useState(false);
   const [isCategoryComposerOpen, setIsCategoryComposerOpen] = useState(false);
   const [isTagComposerOpen, setIsTagComposerOpen] = useState(false);
+  const [isProductDetailsOpen, setIsProductDetailsOpen] = useState(false);
+  const [isLoadingProductDetails, setIsLoadingProductDetails] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [detailModal, setDetailModal] = useState(null);
+  const [editingProductId, setEditingProductId] = useState(null);
+
+  const normalizeRequestError = useCallback((error, fallbackMessage) => {
+    const rawMessage = error instanceof Error ? error.message : String(error || '');
+
+    if (
+      rawMessage.includes('Proxy error:') ||
+      rawMessage.includes('ECONNREFUSED') ||
+      rawMessage.includes('Failed to fetch')
+    ) {
+      return 'Backend service is unavailable. Start the Spring app on port 8088 and try again.';
+    }
+
+    return rawMessage || fallbackMessage;
+  }, []);
 
   const fetchJson = useCallback(async (url, fallbackMessage) => {
-    const response = await fetch(url);
+    let response;
+
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      throw new Error(normalizeRequestError(error, fallbackMessage));
+    }
+
     const contentType = response.headers.get('content-type') || '';
     const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
@@ -54,11 +83,11 @@ function App() {
       const message = typeof data === 'string'
         ? data
         : data.message || data.error || fallbackMessage;
-      throw new Error(message);
+      throw new Error(normalizeRequestError(message, fallbackMessage));
     }
 
     return data;
-  }, []);
+  }, [normalizeRequestError]);
 
   const loadProducts = useCallback(async () => {
     setIsLoadingProducts(true);
@@ -67,11 +96,11 @@ function App() {
       const data = await fetchJson('/api/v1/admin/products/all-products', 'Failed to load products.');
       setProducts(Array.isArray(data) ? data.map(mapBackendProduct) : []);
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Failed to load products.' });
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load products.') });
     } finally {
       setIsLoadingProducts(false);
     }
-  }, [fetchJson]);
+  }, [fetchJson, normalizeRequestError]);
 
   const loadCategories = useCallback(async () => {
     setIsLoadingCategories(true);
@@ -91,11 +120,11 @@ function App() {
         };
       });
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Failed to load categories.' });
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load categories.') });
     } finally {
       setIsLoadingCategories(false);
     }
-  }, [fetchJson]);
+  }, [fetchJson, normalizeRequestError]);
 
   const loadParentOptions = useCallback(async () => {
     setIsLoadingParentOptions(true);
@@ -104,11 +133,11 @@ function App() {
       const data = await fetchJson('/api/v1/admin/categories/parent-options', 'Failed to load parent category options.');
       setParentOptions(Array.isArray(data) ? data.map(mapBackendCategory) : []);
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Failed to load parent category options.' });
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load parent category options.') });
     } finally {
       setIsLoadingParentOptions(false);
     }
-  }, [fetchJson]);
+  }, [fetchJson, normalizeRequestError]);
 
   const loadTags = useCallback(async () => {
     setIsLoadingTags(true);
@@ -117,11 +146,11 @@ function App() {
       const data = await fetchJson('/api/v1/admin/tags/all-tags', 'Failed to load tags.');
       setTags(Array.isArray(data) ? data.map(mapBackendTag) : []);
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Failed to load tags.' });
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load tags.') });
     } finally {
       setIsLoadingTags(false);
     }
-  }, [fetchJson]);
+  }, [fetchJson, normalizeRequestError]);
 
   useEffect(() => {
     loadProducts();
@@ -133,6 +162,17 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem('spring-commerce-active-view', activeView);
   }, [activeView]);
+
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth > 980) {
+        setIsSidebarOpen(false);
+      }
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (!toast) {
@@ -177,6 +217,14 @@ function App() {
     })),
     [categories],
   );
+
+  const navItems = useMemo(() => ([
+    { id: 'products', label: 'Products' },
+    { id: 'categories', label: 'Categories' },
+    { id: 'tags', label: 'Tags' },
+    { id: 'customers', label: 'Customers', disabled: true },
+    { id: 'orders', label: 'Orders', disabled: true },
+  ]), []);
 
   const viewMeta = activeView === 'categories'
     ? {
@@ -251,32 +299,44 @@ function App() {
     setIsSubmittingProduct(true);
 
     try {
-      const response = await fetch('/api/v1/admin/products/create-product', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildProductPayload(productForm)),
-      });
+      let response;
+
+      try {
+        response = await fetch(editingProductId ? `/api/v1/admin/products/${editingProductId}/update-product` : '/api/v1/admin/products/create-product', {
+          method: editingProductId ? 'PATCH' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(buildProductPayload(productForm)),
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Something went wrong while saving the product.'));
+      }
 
       const contentType = response.headers.get('content-type') || '';
       const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
       if (!response.ok) {
         const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
-        throw new Error(message);
+        throw new Error(normalizeRequestError(message, 'Something went wrong while saving the product.'));
       }
 
-      setProducts((current) => [mapBackendProduct(data), ...current]);
+      const mappedProduct = mapBackendProduct(data);
+      setProducts((current) => (
+        editingProductId
+          ? current.map((item) => (item.id === editingProductId ? mappedProduct : item))
+          : [mappedProduct, ...current]
+      ));
       setLastResponse(data);
-      setToast({ type: 'success', message: 'Product created successfully.' });
+      setToast({ type: 'success', message: editingProductId ? 'Product updated successfully.' : 'Product created successfully.' });
       setProductForm({
         ...INITIAL_PRODUCT_FORM,
         categoryId: productCategoryOptions[0]?.id || '',
       });
+      setEditingProductId(null);
       setIsProductComposerOpen(false);
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Something went wrong while creating the product.' });
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while saving the product.') });
     } finally {
       setIsSubmittingProduct(false);
     }
@@ -287,20 +347,26 @@ function App() {
     setIsSubmittingCategory(true);
 
     try {
-      const response = await fetch('/api/v1/admin/categories/create-category', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildCategoryPayload(categoryForm)),
-      });
+      let response;
+
+      try {
+        response = await fetch('/api/v1/admin/categories/create-category', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(buildCategoryPayload(categoryForm)),
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Something went wrong while creating the category.'));
+      }
 
       const contentType = response.headers.get('content-type') || '';
       const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
       if (!response.ok) {
         const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
-        throw new Error(message);
+        throw new Error(normalizeRequestError(message, 'Something went wrong while creating the category.'));
       }
 
       setLastResponse(data);
@@ -309,7 +375,7 @@ function App() {
       setIsCategoryComposerOpen(false);
       await Promise.all([loadCategories(), loadParentOptions()]);
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Something went wrong while creating the category.' });
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while creating the category.') });
     } finally {
       setIsSubmittingCategory(false);
     }
@@ -320,20 +386,26 @@ function App() {
     setIsSubmittingTag(true);
 
     try {
-      const response = await fetch('/api/v1/admin/tags/create-tag', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildTagPayload(tagForm)),
-      });
+      let response;
+
+      try {
+        response = await fetch('/api/v1/admin/tags/create-tag', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(buildTagPayload(tagForm)),
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Something went wrong while creating the tag.'));
+      }
 
       const contentType = response.headers.get('content-type') || '';
       const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
       if (!response.ok) {
         const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
-        throw new Error(message);
+        throw new Error(normalizeRequestError(message, 'Something went wrong while creating the tag.'));
       }
 
       setLastResponse(data);
@@ -342,15 +414,125 @@ function App() {
       setIsTagComposerOpen(false);
       await loadTags();
     } catch (error) {
-      setToast({ type: 'error', message: error.message || 'Something went wrong while creating the tag.' });
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while creating the tag.') });
     } finally {
       setIsSubmittingTag(false);
     }
   }
 
+  async function handleProductSelect(productId) {
+    const currentProduct = products.find((item) => item.id === productId) || null;
+    setSelectedProduct(currentProduct);
+    setIsProductDetailsOpen(true);
+    setIsLoadingProductDetails(true);
+
+    try {
+      const data = await fetchJson(`/api/v1/admin/products/${productId}/product`, 'Failed to load product details.');
+      setSelectedProduct(mapBackendProduct(data));
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load product details.') });
+    } finally {
+      setIsLoadingProductDetails(false);
+    }
+  }
+
+  function handleEditProduct(product) {
+    const matchingCategory = categories.find((item) => item.name === product.category);
+    setEditingProductId(product.id);
+    setProductForm({
+      name: product.name,
+      description: product.description ?? '',
+      price: String(product.price ?? ''),
+      stockQuantity: String(product.stockQuantity ?? 0),
+      categoryId: matchingCategory ? String(matchingCategory.id) : '',
+      tagIds: tags
+        .filter((tag) => product.tags.includes(tag.slug) || product.tags.includes(tag.name))
+        .map((tag) => tag.id),
+      imageUris: product.images.map((image) => image.imageUrl).join('\n'),
+      isFeatured: Boolean(product.isFeatured),
+    });
+    setIsProductComposerOpen(true);
+  }
+
+  async function handleDeleteProduct(product) {
+    if (!window.confirm(`Delete product "${product.name}"?`)) {
+      return;
+    }
+
+    try {
+      let response;
+
+      try {
+        response = await fetch(`/api/v1/admin/products/${product.id}/product`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to delete product.'));
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(normalizeRequestError(text, 'Failed to delete product.'));
+      }
+
+      setProducts((current) => current.filter((item) => item.id !== product.id));
+      setToast({ type: 'success', message: 'Product deleted successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete product.') });
+    }
+  }
+
+  function openEntityDetails(title, subtitle, fields) {
+    setDetailModal({ title, subtitle, fields });
+  }
+
+  function handleViewCategory(category) {
+    openEntityDetails(category.name, 'Category Details', [
+      { label: 'Slug', value: category.slug },
+      { label: 'Parent', value: category.parentName || 'Root' },
+      { label: 'Description', value: category.description || 'No description' },
+      { label: 'State', value: category.isActive ? 'Active' : 'Inactive' },
+    ]);
+  }
+
+  function handleViewTag(tag) {
+    openEntityDetails(tag.name, 'Tag Details', [
+      { label: 'Slug', value: tag.slug },
+      { label: 'Description', value: tag.description || 'No description' },
+      { label: 'State', value: tag.isActive ? 'Active' : 'Inactive' },
+    ]);
+  }
+
+  function handlePendingAction(label) {
+    setToast({ type: 'error', message: `${label} is ready in the UI. Implement the backend API next.` });
+  }
+
   return (
     <div className="app-shell">
       {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+      {detailModal ? (
+        <EntityDetailsModal
+          fields={detailModal.fields}
+          onClose={() => setDetailModal(null)}
+          subtitle={detailModal.subtitle}
+          title={detailModal.title}
+        />
+      ) : null}
+      {isProductDetailsOpen ? (
+        <ProductDetailsModal
+          isLoading={isLoadingProductDetails}
+          onClose={() => setIsProductDetailsOpen(false)}
+          onDelete={async (product) => {
+            await handleDeleteProduct(product);
+            setIsProductDetailsOpen(false);
+          }}
+          onEdit={(product) => {
+            setIsProductDetailsOpen(false);
+            handleEditProduct(product);
+          }}
+          product={selectedProduct}
+        />
+      ) : null}
       {isProductComposerOpen ? (
         <ProductComposer
           categories={productCategoryOptions}
@@ -358,8 +540,16 @@ function App() {
           isLoadingCategories={isLoadingCategories}
           isLoadingTags={isLoadingTags}
           isSubmitting={isSubmittingProduct}
+          mode={editingProductId ? 'edit' : 'create'}
           onChange={handleProductChange}
-          onClose={() => setIsProductComposerOpen(false)}
+          onClose={() => {
+            setIsProductComposerOpen(false);
+            setEditingProductId(null);
+            setProductForm({
+              ...INITIAL_PRODUCT_FORM,
+              categoryId: productCategoryOptions[0]?.id || '',
+            });
+          }}
           onSubmit={handleProductSubmit}
           onTagToggle={toggleProductTag}
           tags={tags}
@@ -386,10 +576,19 @@ function App() {
         />
       ) : null}
 
-      <Sidebar activeView={activeView} onChangeView={setActiveView} />
+      <Sidebar
+        activeView={activeView}
+        isOpen={isSidebarOpen}
+        navItems={navItems}
+        onChangeView={setActiveView}
+        onClose={() => setIsSidebarOpen(false)}
+      />
 
       <main className="workspace">
-        <Topbar activeView={activeView} />
+        <Topbar
+          activeView={activeView}
+          onToggleSidebar={() => setIsSidebarOpen((current) => !current)}
+        />
 
         <section className="page-header">
           <div>
@@ -408,6 +607,7 @@ function App() {
           <ProductsView
             isLoadingProducts={isLoadingProducts}
             onAddProduct={() => setIsProductComposerOpen(true)}
+            onSelectProduct={handleProductSelect}
             productSummary={productSummary}
             products={products}
             tags={tags}
@@ -418,12 +618,18 @@ function App() {
             categorySummary={categorySummary}
             isLoadingCategories={isLoadingCategories}
             onAddCategory={() => setIsCategoryComposerOpen(true)}
+            onDeleteCategory={() => handlePendingAction('Delete category')}
+            onEditCategory={() => handlePendingAction('Edit category')}
+            onViewCategory={handleViewCategory}
             parentOptions={parentOptions}
           />
         ) : (
           <TagsView
             isLoadingTags={isLoadingTags}
             onAddTag={() => setIsTagComposerOpen(true)}
+            onDeleteTag={() => handlePendingAction('Delete tag')}
+            onEditTag={() => handlePendingAction('Edit tag')}
+            onViewTag={handleViewTag}
             tagSummary={tagSummary}
             tags={tags}
           />

@@ -1,15 +1,37 @@
+function normalizeImageUri(uri) {
+  if (!uri) {
+    return uri;
+  }
+
+  if (/^(https?:)?\/\//i.test(uri) || uri.startsWith('/')) {
+    return uri;
+  }
+
+  if (/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(uri)) {
+    return `https://${uri}`;
+  }
+
+  return uri;
+}
+
 export function mapBackendProduct(item) {
+  const images = Array.isArray(item.images)
+    ? [...item.images].sort((left, right) => (left.displayOrder ?? 0) - (right.displayOrder ?? 0))
+    : [];
+
   return {
     id: item.id,
     category: item.categoryName || 'Catalog',
     name: item.name || 'Untitled product',
     sku: item.slug || '--',
+    description: item.description ?? '',
     price: Number(item.price ?? 0),
     stockQuantity: Number(item.stockQuantity ?? 0),
+    isFeatured: Boolean(item.isFeatured),
     imageLabel: item.name || 'Product',
-    images: Array.isArray(item.images) ? item.images : [],
-    primaryImageUrl: Array.isArray(item.images) && item.images.length
-      ? item.images.find((image) => image.isPrimary)?.imageUrl || item.images[0].imageUrl
+    images,
+    primaryImageUrl: images.length
+      ? images.find((image) => image.isPrimary)?.imageUrl || images[0].imageUrl
       : null,
     tags: Array.isArray(item.tags) ? item.tags : [],
   };
@@ -43,14 +65,13 @@ export function buildProductPayload(productForm) {
     .map((item) => item.trim())
     .filter(Boolean)
     .map((url, index) => ({
-      url,
+      url: normalizeImageUri(url),
       isPrimary: index === 0,
       displayOrder: index,
     }));
 
-  return {
+  const payload = {
     name: productForm.name.trim(),
-    description: productForm.description.trim(),
     price: Number(productForm.price),
     stockQuantity: Number(productForm.stockQuantity),
     categoryId: Number(productForm.categoryId),
@@ -58,6 +79,12 @@ export function buildProductPayload(productForm) {
     images,
     isFeatured: productForm.isFeatured,
   };
+
+  if (productForm.description !== undefined) {
+    payload.description = productForm.description.trim();
+  }
+
+  return payload;
 }
 
 export function buildCategoryPayload(categoryForm) {

@@ -3,7 +3,14 @@ import LoadingCard from '../components/shared/LoadingCard';
 import ProductCard from '../components/shared/ProductCard';
 import SummaryCard from '../components/shared/SummaryCard';
 
-function ProductsView({ isLoadingProducts, onAddProduct, products, productSummary, tags }) {
+function ProductsView({
+  isLoadingProducts,
+  onAddProduct,
+  onSelectProduct,
+  products,
+  productSummary,
+  tags,
+}) {
   return (
     <>
       <section className="summary-grid">
@@ -18,7 +25,11 @@ function ProductsView({ isLoadingProducts, onAddProduct, products, productSummar
           <LoadingCard label="Loading catalog..." />
         ) : products.length ? (
           products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard
+              key={product.id}
+              product={product}
+              onSelect={onSelectProduct}
+            />
           ))
         ) : (
           <EmptyCard label="No products available yet." />

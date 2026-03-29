@@ -1,6 +1,13 @@
-function Sidebar({ activeView, onChangeView }) {
+function Sidebar({ activeView, isOpen, navItems, onChangeView, onClose }) {
   return (
-    <aside className="sidebar">
+    <>
+      <button
+        type="button"
+        className={`sidebar-scrim ${isOpen ? 'is-visible' : ''}`}
+        aria-label="Close navigation"
+        onClick={onClose}
+      />
+      <aside className={`sidebar ${isOpen ? 'is-open' : ''}`}>
       <div className="brand-block">
         <span className="brand-mark">SC</span>
         <div>
@@ -10,19 +17,24 @@ function Sidebar({ activeView, onChangeView }) {
       </div>
 
       <nav className="sidebar-nav">
-        <button type="button" className="nav-item">Dashboard</button>
-        <button type="button" className="nav-item">Orders</button>
-        <button type="button" className={`nav-item ${activeView === 'products' ? 'is-active' : ''}`} onClick={() => onChangeView('products')}>
-          Products
-        </button>
-        <button type="button" className={`nav-item ${activeView === 'categories' ? 'is-active' : ''}`} onClick={() => onChangeView('categories')}>
-          Categories
-        </button>
-        <button type="button" className={`nav-item ${activeView === 'tags' ? 'is-active' : ''}`} onClick={() => onChangeView('tags')}>
-          Tags
-        </button>
-        <button type="button" className="nav-item">Customers</button>
-        <button type="button" className="nav-item">Settings</button>
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={`nav-item ${activeView === item.id ? 'is-active' : ''} ${item.disabled ? 'is-disabled' : ''}`}
+            onClick={() => {
+              if (item.disabled) {
+                return;
+              }
+
+              onChangeView(item.id);
+              onClose();
+            }}
+            disabled={item.disabled}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
 
       <div className="profile-card">
@@ -32,7 +44,8 @@ function Sidebar({ activeView, onChangeView }) {
           <p>Retail management workspace</p>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 

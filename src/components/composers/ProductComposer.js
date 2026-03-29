@@ -1,14 +1,15 @@
-function ProductComposer({ categories, form, isLoadingCategories, isLoadingTags, isSubmitting, onChange, onClose, onSubmit, onTagToggle, tags }) {
+function ProductComposer({ categories, form, isLoadingCategories, isLoadingTags, isSubmitting, mode = 'create', onChange, onClose, onSubmit, onTagToggle, tags }) {
   const hasCategories = categories.length > 0;
   const hasTags = tags.length > 0;
+  const isEdit = mode === 'edit';
 
   return (
     <div className="composer-backdrop" role="dialog" aria-modal="true">
       <div className="composer-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">New Product</p>
-            <h3>Create product</h3>
+            <p className="eyebrow">{isEdit ? 'Edit Product' : 'New Product'}</p>
+            <h3>{isEdit ? 'Update product' : 'Create product'}</h3>
           </div>
           <button type="button" className="close-button" onClick={onClose}>Close</button>
         </div>
@@ -27,7 +28,13 @@ function ProductComposer({ categories, form, isLoadingCategories, isLoadingTags,
 
             <label className="field field-full">
               <span>Description</span>
-              <textarea name="description" value={form.description} onChange={onChange} placeholder="Glass for men" required />
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={onChange}
+                placeholder="Glass for men"
+                required={!isEdit}
+              />
             </label>
 
             <label className="field">
@@ -89,7 +96,7 @@ function ProductComposer({ categories, form, isLoadingCategories, isLoadingTags,
           <div className="composer-actions">
             <button type="button" className="ghost-button" onClick={onClose}>Cancel</button>
             <button type="submit" className="primary-button compact" disabled={isSubmitting || isLoadingCategories || !hasCategories}>
-              {isSubmitting ? 'Creating...' : 'Create Product'}
+              {isSubmitting ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Product' : 'Create Product')}
             </button>
           </div>
         </form>

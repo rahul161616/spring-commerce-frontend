@@ -1,7 +1,7 @@
 import CompactCollection, { CompactTable, CompactTableHeader, TagRow } from '../components/shared/CompactCollection';
 import SummaryCard from '../components/shared/SummaryCard';
 
-function TagsView({ isLoadingTags, onAddTag, tagSummary, tags }) {
+function TagsView({ isLoadingTags, onAddTag, onDeleteTag, onEditTag, onViewTag, tagSummary, tags }) {
   return (
     <>
       <section className="summary-grid">
@@ -22,10 +22,10 @@ function TagsView({ isLoadingTags, onAddTag, tagSummary, tags }) {
         title="Tag Directory"
       >
         <CompactTable>
-          <CompactTableHeader columns={['Tag', 'Slug', 'Description', 'State']} />
+          <CompactTableHeader columns={['Tag', 'Slug', 'Description', 'State', 'Actions']} />
           <tbody>
             {tags.map((tag) => (
-              <TagRow key={tag.id} tag={tag} />
+              <TagRow key={tag.id} tag={tag} onDelete={onDeleteTag} onEdit={onEditTag} onView={onViewTag} />
             ))}
           </tbody>
         </CompactTable>

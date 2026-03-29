@@ -40,14 +40,36 @@ export function CompactTableHeader({ columns }) {
     <thead>
       <tr>
         {columns.map((column) => (
-          <th key={column} scope="col">{column}</th>
+          <th
+            key={column}
+            scope="col"
+            className={`compact-col-${column.toLowerCase().replace(/\s+/g, '-')}`}
+          >
+            {column}
+          </th>
         ))}
       </tr>
     </thead>
   );
 }
 
-export function CategoryRow({ category }) {
+function ActionCell({ onDelete, onEdit, onView }) {
+  return (
+    <td className="compact-actions-cell">
+      <button type="button" className="table-action icon" aria-label="View" title="View" onClick={onView}>
+        <span aria-hidden="true">{'\u25CB'}</span>
+      </button>
+      <button type="button" className="table-action icon" aria-label="Edit" title="Edit" onClick={onEdit}>
+        <span aria-hidden="true">{'\u270E'}</span>
+      </button>
+      <button type="button" className="table-action icon danger" aria-label="Delete" title="Delete" onClick={onDelete}>
+        <span aria-hidden="true">{'\u00D7'}</span>
+      </button>
+    </td>
+  );
+}
+
+export function CategoryRow({ category, onDelete, onEdit, onView }) {
   return (
     <tr>
       <td>
@@ -60,15 +82,18 @@ export function CategoryRow({ category }) {
       <td>{category.parentName || 'Root'}</td>
       <td className="compact-description-cell">{category.description || 'No description'}</td>
       <td className="compact-state-cell">
-        <span className={`status-pill ${category.isActive ? 'success' : 'danger'}`}>
-          {category.isActive ? 'Active' : 'Inactive'}
-        </span>
+        <div className="state-pill-wrap">
+          <span className={`status-pill ${category.isActive ? 'success' : 'danger'}`}>
+            {category.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
       </td>
+      <ActionCell onDelete={() => onDelete(category)} onEdit={() => onEdit(category)} onView={() => onView(category)} />
     </tr>
   );
 }
 
-export function TagRow({ tag }) {
+export function TagRow({ onDelete, onEdit, onView, tag }) {
   return (
     <tr>
       <td>
@@ -80,10 +105,13 @@ export function TagRow({ tag }) {
       <td className="compact-mono">{tag.slug}</td>
       <td className="compact-description-cell">{tag.description || 'No description'}</td>
       <td className="compact-state-cell">
-        <span className={`status-pill ${tag.isActive ? 'success' : 'danger'}`}>
-          {tag.isActive ? 'Active' : 'Inactive'}
-        </span>
+        <div className="state-pill-wrap">
+          <span className={`status-pill ${tag.isActive ? 'success' : 'danger'}`}>
+            {tag.isActive ? 'Active' : 'Inactive'}
+          </span>
+        </div>
       </td>
+      <ActionCell onDelete={() => onDelete(tag)} onEdit={() => onEdit(tag)} onView={() => onView(tag)} />
     </tr>
   );
 }

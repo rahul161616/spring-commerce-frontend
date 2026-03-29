@@ -1,6 +1,24 @@
-function Topbar({ activeView }) {
+function Topbar({ activeView, onToggleSidebar }) {
+  const viewLabel = activeView === 'categories'
+    ? 'Taxonomy'
+    : activeView === 'tags'
+      ? 'Tag Control'
+      : 'Product Catalog';
+
   return (
     <header className="topbar">
+      <div className="topbar-leading">
+        <button type="button" className="menu-toggle" onClick={onToggleSidebar} aria-label="Toggle navigation">
+          <span className="burger-line" />
+          <span className="burger-line" />
+          <span className="burger-line" />
+        </button>
+        <div className="topbar-context">
+          <span className="context-pill live">Admin Live</span>
+          <span className="context-pill">{viewLabel}</span>
+          <span className="context-text">Ready for desktop and phone review</span>
+        </div>
+      </div>
       <div className="search-shell">
         <span className="search-icon">Search</span>
         <input
@@ -8,11 +26,6 @@ function Topbar({ activeView }) {
           placeholder={activeView === 'categories' ? 'Search categories...' : activeView === 'tags' ? 'Search tags...' : 'Search catalog...'}
         />
       </div>
-      <nav className="top-links">
-        <button type="button">Shades</button>
-        <button type="button">Clothes</button>
-        <button type="button">Tech</button>
-      </nav>
       <div className="top-icons">
         <button type="button">Alerts</button>
         <button type="button">Profile</button>

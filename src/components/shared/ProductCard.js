@@ -1,6 +1,6 @@
 import MetricField from './MetricField';
 
-function ProductCard({ product }) {
+function ProductCard({ onSelect, product }) {
   const status = product.stockQuantity === 0
     ? { label: 'Out of Stock', className: 'danger' }
     : product.stockQuantity <= 10
@@ -8,7 +8,7 @@ function ProductCard({ product }) {
       : { label: 'In Stock', className: 'success' };
 
   return (
-    <article className="product-card">
+    <button type="button" className="product-card product-card-button" onClick={() => onSelect(product.id)}>
       <div className="product-visual">
         <span className="product-badge">{product.category}</span>
         <div className="product-placeholder has-image">
@@ -34,10 +34,10 @@ function ProductCard({ product }) {
 
         <div className="metric-grid">
           <MetricField label="Stock Level" value={product.stockQuantity} />
-          <MetricField label="Tags" value={product.tags.length ? product.tags.join(', ') : 'None'} />
+          <MetricField label="Images" value={product.images.length} />
         </div>
       </div>
-    </article>
+    </button>
   );
 }
 
