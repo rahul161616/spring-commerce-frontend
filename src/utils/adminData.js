@@ -28,6 +28,7 @@ export function mapBackendProduct(item) {
     price: Number(item.price ?? 0),
     stockQuantity: Number(item.stockQuantity ?? 0),
     isFeatured: Boolean(item.isFeatured),
+    status: item.status || 'DRAFT',
     imageLabel: item.name || 'Product',
     images,
     primaryImageUrl: images.length

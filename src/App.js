@@ -26,12 +26,24 @@ import {
 } from './utils/adminData';
 
 function App() {
+  const PRODUCT_STATUS_FILTERS = [
+    { id: 'ALL', label: 'All' },
+    { id: 'ACTIVE', label: 'Active' },
+    { id: 'INACTIVE', label: 'Inactive' },
+    { id: 'DRAFT', label: 'Draft' },
+    { id: 'ARCHIVED', label: 'Archived' },
+  ];
+
   const [activeView, setActiveView] = useState(() => window.localStorage.getItem('spring-commerce-active-view') || 'products');
+  const [activeProductStatusFilter, setActiveProductStatusFilter] = useState(
+    () => window.localStorage.getItem('spring-commerce-product-status-filter') || 'ALL',
+  );
   const [productForm, setProductForm] = useState(INITIAL_PRODUCT_FORM);
   const [categoryForm, setCategoryForm] = useState(INITIAL_CATEGORY_FORM);
   const [tagForm, setTagForm] = useState(INITIAL_TAG_FORM);
   const [toast, setToast] = useState(null);
   const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
+  const [isUpdatingProductStatus, setIsUpdatingProductStatus] = useState(false);
   const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
   const [isSubmittingTag, setIsSubmittingTag] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
@@ -164,6 +176,10 @@ function App() {
   }, [activeView]);
 
   useEffect(() => {
+    window.localStorage.setItem('spring-commerce-product-status-filter', activeProductStatusFilter);
+  }, [activeProductStatusFilter]);
+
+  useEffect(() => {
     function handleResize() {
       if (window.innerWidth > 980) {
         setIsSidebarOpen(false);
@@ -186,13 +202,30 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [toast]);
 
+  const filteredProducts = useMemo(
+    () => (activeProductStatusFilter === 'ALL'
+      ? products
+      : products.filter((item) => item.status === activeProductStatusFilter)),
+    [activeProductStatusFilter, products],
+  );
+
   const productSummary = useMemo(() => {
-    const totalProducts = products.length;
-    const lowStock = products.filter((item) => item.stockQuantity > 0 && item.stockQuantity <= 10).length;
-    const outOfStock = products.filter((item) => item.stockQuantity === 0).length;
+    const totalProducts = filteredProducts.length;
+    const lowStock = filteredProducts.filter((item) => item.stockQuantity > 0 && item.stockQuantity <= 10).length;
+    const outOfStock = filteredProducts.filter((item) => item.stockQuantity === 0).length;
 
     return { totalProducts, lowStock, outOfStock };
-  }, [products]);
+  }, [filteredProducts]);
+
+  const productFilters = useMemo(
+    () => PRODUCT_STATUS_FILTERS.map((filter) => ({
+      ...filter,
+      count: filter.id === 'ALL'
+        ? products.length
+        : products.filter((item) => item.status === filter.id).length,
+    })),
+    [products],
+  );
 
   const categorySummary = useMemo(() => {
     const totalCategories = categories.length;
@@ -482,6 +515,50 @@ function App() {
     }
   }
 
+  async function handleProductStatusChange(product, status) {
+    setIsUpdatingProductStatus(true);
+
+    try {
+      let response;
+
+      try {
+        response = await fetch('/api/v1/admin/products/status/update-product', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: product.id,
+            status,
+          }),
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to update product status.'));
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
+        throw new Error(normalizeRequestError(message, 'Failed to update product status.'));
+      }
+
+      setProducts((current) => current.map((item) => (
+        item.id === product.id ? { ...item, status: data.status || status } : item
+      )));
+      setSelectedProduct((current) => (
+        current && current.id === product.id ? { ...current, status: data.status || status } : current
+      ));
+      setLastResponse(data);
+      setToast({ type: 'success', message: data.message || 'Product status updated successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to update product status.') });
+    } finally {
+      setIsUpdatingProductStatus(false);
+    }
+  }
+
   function openEntityDetails(title, subtitle, fields) {
     setDetailModal({ title, subtitle, fields });
   }
@@ -521,6 +598,7 @@ function App() {
       {isProductDetailsOpen ? (
         <ProductDetailsModal
           isLoading={isLoadingProductDetails}
+          isUpdatingStatus={isUpdatingProductStatus}
           onClose={() => setIsProductDetailsOpen(false)}
           onDelete={async (product) => {
             await handleDeleteProduct(product);
@@ -530,6 +608,7 @@ function App() {
             setIsProductDetailsOpen(false);
             handleEditProduct(product);
           }}
+          onStatusChange={handleProductStatusChange}
           product={selectedProduct}
         />
       ) : null}
@@ -605,11 +684,14 @@ function App() {
 
         {activeView === 'products' ? (
           <ProductsView
+            activeStatusFilter={activeProductStatusFilter}
             isLoadingProducts={isLoadingProducts}
             onAddProduct={() => setIsProductComposerOpen(true)}
             onSelectProduct={handleProductSelect}
+            onStatusFilterChange={setActiveProductStatusFilter}
+            productFilters={productFilters}
             productSummary={productSummary}
-            products={products}
+            products={filteredProducts}
             tags={tags}
           />
         ) : activeView === 'categories' ? (

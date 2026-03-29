@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 
-function ProductDetailsModal({ isLoading, onClose, onDelete, onEdit, product }) {
+const STATUS_OPTIONS = ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'];
+
+function ProductDetailsModal({ isLoading, isUpdatingStatus, onClose, onDelete, onEdit, onStatusChange, product }) {
   const images = useMemo(() => product?.images?.length ? product.images : [], [product]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(null);
+  const [pendingStatus, setPendingStatus] = useState(product?.status || 'DRAFT');
 
   const activeImage = images[activeIndex] || null;
   const stockTone = product?.stockQuantity === 0
@@ -11,10 +14,15 @@ function ProductDetailsModal({ isLoading, onClose, onDelete, onEdit, product }) 
     : product?.stockQuantity <= 10
       ? 'warning'
       : 'success';
+  const productStatus = product?.status || 'DRAFT';
 
   useEffect(() => {
     setActiveIndex(0);
   }, [product?.id]);
+
+  useEffect(() => {
+    setPendingStatus(product?.status || 'DRAFT');
+  }, [product?.id, product?.status]);
 
   function showImage(nextIndex) {
     if (!images.length) {
@@ -95,19 +103,25 @@ function ProductDetailsModal({ isLoading, onClose, onDelete, onEdit, product }) 
 
             <div className="detail-copy">
               <div className="detail-heading">
-                <span className="product-badge">{product.category}</span>
-                <span className={`status-pill ${stockTone}`}>
-                  {product.stockQuantity === 0 ? 'Out of Stock' : product.stockQuantity <= 10 ? 'Low Stock' : 'In Stock'}
-                </span>
+                <div className="detail-heading-copy">
+                  <span className="product-badge">{product.category}</span>
+                  <div className="detail-status-row">
+                    <span className={`status-pill detail-status-pill is-${productStatus.toLowerCase()}`}>{productStatus}</span>
+                    <span className={`status-pill ${stockTone}`}>
+                      {product.stockQuantity === 0 ? 'Out of Stock' : product.stockQuantity <= 10 ? 'Low Stock' : 'In Stock'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div className="detail-price">${product.price.toFixed(2)}</div>
 
+              <div className="detail-description">
+                <span>Description</span>
+                <p>{product.description?.trim() ? product.description : 'No description provided.'}</p>
+              </div>
+
               <div className="detail-grid">
-                <div className="detail-field">
-                  <span>Slug</span>
-                  <strong>{product.sku}</strong>
-                </div>
                 <div className="detail-field">
                   <span>Stock Quantity</span>
                   <strong>{product.stockQuantity}</strong>
@@ -128,6 +142,24 @@ function ProductDetailsModal({ isLoading, onClose, onDelete, onEdit, product }) 
                   {product.tags.length ? product.tags.map((tag) => (
                     <span key={tag} className="detail-tag">{tag}</span>
                   )) : <span className="detail-tag muted">No tags assigned</span>}
+                </div>
+              </div>
+
+              <div className="detail-status-panel">
+                <div className="detail-status-controls">
+                  <select id="product-status-select" value={pendingStatus} onChange={(event) => setPendingStatus(event.target.value)}>
+                    {STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="primary-button detail-status-save"
+                    disabled={isUpdatingStatus || pendingStatus === productStatus}
+                    onClick={() => onStatusChange(product, pendingStatus)}
+                  >
+                    {isUpdatingStatus ? 'Saving...' : 'Save'}
+                  </button>
                 </div>
               </div>
 
