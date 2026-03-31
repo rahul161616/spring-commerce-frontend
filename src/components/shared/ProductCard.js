@@ -30,6 +30,9 @@ function ProductCard({ onSelect, product }) {
           </div>
           <div className="price-block">
             <strong>${product.price.toFixed(2)}</strong>
+            {product.compareAt > product.price ? (
+              <small className="price-compare">${product.compareAt.toFixed(2)}</small>
+            ) : null}
             <span className={`status-pill ${status.className}`}>{status.label}</span>
           </div>
         </div>

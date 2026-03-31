@@ -1,9 +1,11 @@
 function Topbar({ activeView, onToggleSidebar }) {
-  const viewLabel = activeView === 'categories'
-    ? 'Taxonomy'
-    : activeView === 'tags'
-      ? 'Tag Control'
-      : 'Product Catalog';
+  const viewLabel = activeView === 'homepage'
+    ? 'Homepage Studio'
+    : activeView === 'categories'
+      ? 'Taxonomy'
+      : activeView === 'tags'
+        ? 'Tag Control'
+        : 'Product Catalog';
 
   return (
     <header className="topbar">
@@ -23,7 +25,15 @@ function Topbar({ activeView, onToggleSidebar }) {
         <span className="search-icon">Search</span>
         <input
           type="search"
-          placeholder={activeView === 'categories' ? 'Search categories...' : activeView === 'tags' ? 'Search tags...' : 'Search catalog...'}
+          placeholder={
+            activeView === 'homepage'
+              ? 'Search homepage sections...'
+              : activeView === 'categories'
+                ? 'Search categories...'
+                : activeView === 'tags'
+                  ? 'Search tags...'
+                  : 'Search catalog...'
+          }
         />
       </div>
       <div className="top-icons">

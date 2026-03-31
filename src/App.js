@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import './App.css';
 import CategoryComposer from './components/composers/CategoryComposer';
+import HomepageFeaturedCategoryComposer from './components/composers/HomepageFeaturedCategoryComposer';
+import HomepageHeroComposer from './components/composers/HomepageHeroComposer';
+import HomepageNewArrivalComposer from './components/composers/HomepageNewArrivalComposer';
+import HomepageTrendingProductComposer from './components/composers/HomepageTrendingProductComposer';
 import ProductComposer from './components/composers/ProductComposer';
 import TagComposer from './components/composers/TagComposer';
 import Sidebar from './components/layout/Sidebar';
@@ -9,21 +13,35 @@ import ProductDetailsModal from './components/shared/ProductDetailsModal';
 import Topbar from './components/layout/Topbar';
 import Toast from './components/shared/Toast';
 import CategoriesView from './views/CategoriesView';
+import HomepageView from './views/HomepageView';
 import ProductsView from './views/ProductsView';
 import TagsView from './views/TagsView';
 import {
   INITIAL_CATEGORY_FORM,
+  INITIAL_HOMEPAGE_FEATURED_CATEGORY_FORM,
+  INITIAL_HOMEPAGE_HERO_FORM,
+  INITIAL_HOMEPAGE_NEW_ARRIVAL_FORM,
+  INITIAL_HOMEPAGE_TRENDING_PRODUCT_FORM,
   INITIAL_PRODUCT_FORM,
   INITIAL_TAG_FORM,
 } from './constants/forms';
 import {
   buildCategoryPayload,
+  buildHomepageFeaturedCategoryPayload,
+  buildHomepageHeroPayload,
+  buildHomepageNewArrivalPayload,
+  buildHomepageTrendingProductPayload,
   buildProductPayload,
   buildTagPayload,
   mapBackendCategory,
+  mapBackendHomepageFeaturedCategory,
+  mapBackendHomepageHero,
+  mapBackendHomepageNewArrivalRule,
+  mapBackendHomepageTrendingProduct,
   mapBackendProduct,
   mapBackendTag,
-} from './utils/adminData';
+} from './api/admin';
+import { FRONTEND_API } from './api/apiConstants';
 
 function App() {
   const PRODUCT_STATUS_FILTERS = [
@@ -41,29 +59,61 @@ function App() {
   const [productForm, setProductForm] = useState(INITIAL_PRODUCT_FORM);
   const [categoryForm, setCategoryForm] = useState(INITIAL_CATEGORY_FORM);
   const [tagForm, setTagForm] = useState(INITIAL_TAG_FORM);
+  const [featuredCategoryForm, setFeaturedCategoryForm] = useState(INITIAL_HOMEPAGE_FEATURED_CATEGORY_FORM);
+  const [heroForm, setHeroForm] = useState(INITIAL_HOMEPAGE_HERO_FORM);
+  const [newArrivalRuleForm, setNewArrivalRuleForm] = useState(INITIAL_HOMEPAGE_NEW_ARRIVAL_FORM);
+  const [trendingProductForm, setTrendingProductForm] = useState(INITIAL_HOMEPAGE_TRENDING_PRODUCT_FORM);
   const [toast, setToast] = useState(null);
   const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
   const [isUpdatingProductStatus, setIsUpdatingProductStatus] = useState(false);
   const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
   const [isSubmittingTag, setIsSubmittingTag] = useState(false);
+  const [isSubmittingFeaturedCategory, setIsSubmittingFeaturedCategory] = useState(false);
+  const [isSubmittingHero, setIsSubmittingHero] = useState(false);
+  const [isSubmittingNewArrivalRule, setIsSubmittingNewArrivalRule] = useState(false);
+  const [isSubmittingTrendingProduct, setIsSubmittingTrendingProduct] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [isLoadingParentOptions, setIsLoadingParentOptions] = useState(true);
   const [isLoadingTags, setIsLoadingTags] = useState(true);
+  const [isLoadingFeaturedCategories, setIsLoadingFeaturedCategories] = useState(true);
+  const [isLoadingHeroes, setIsLoadingHeroes] = useState(true);
+  const [isLoadingNewArrivalRules, setIsLoadingNewArrivalRules] = useState(true);
+  const [isLoadingTrendingProducts, setIsLoadingTrendingProducts] = useState(true);
   const [lastResponse, setLastResponse] = useState(null);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
+  const [featuredCategories, setFeaturedCategories] = useState([]);
+  const [heroes, setHeroes] = useState([]);
+  const [homepageNewArrivalRules, setHomepageNewArrivalRules] = useState([]);
+  const [homepageTrendingProducts, setHomepageTrendingProducts] = useState([]);
   const [parentOptions, setParentOptions] = useState([]);
   const [isProductComposerOpen, setIsProductComposerOpen] = useState(false);
   const [isCategoryComposerOpen, setIsCategoryComposerOpen] = useState(false);
   const [isTagComposerOpen, setIsTagComposerOpen] = useState(false);
+  const [isFeaturedCategoryComposerOpen, setIsFeaturedCategoryComposerOpen] = useState(false);
+  const [isHeroComposerOpen, setIsHeroComposerOpen] = useState(false);
+  const [isNewArrivalComposerOpen, setIsNewArrivalComposerOpen] = useState(false);
+  const [isTrendingProductComposerOpen, setIsTrendingProductComposerOpen] = useState(false);
   const [isProductDetailsOpen, setIsProductDetailsOpen] = useState(false);
   const [isLoadingProductDetails, setIsLoadingProductDetails] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [detailModal, setDetailModal] = useState(null);
   const [editingProductId, setEditingProductId] = useState(null);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [editingCategoryInitial, setEditingCategoryInitial] = useState(null);
+  const [editingTagId, setEditingTagId] = useState(null);
+  const [editingTagInitial, setEditingTagInitial] = useState(null);
+  const [editingFeaturedCategoryId, setEditingFeaturedCategoryId] = useState(null);
+  const [editingFeaturedCategoryInitial, setEditingFeaturedCategoryInitial] = useState(null);
+  const [editingHeroId, setEditingHeroId] = useState(null);
+  const [editingHeroInitial, setEditingHeroInitial] = useState(null);
+  const [editingNewArrivalRuleId, setEditingNewArrivalRuleId] = useState(null);
+  const [editingNewArrivalRuleInitial, setEditingNewArrivalRuleInitial] = useState(null);
+  const [editingTrendingProductId, setEditingTrendingProductId] = useState(null);
+  const [editingTrendingProductInitial, setEditingTrendingProductInitial] = useState(null);
 
   const normalizeRequestError = useCallback((error, fallbackMessage) => {
     const rawMessage = error instanceof Error ? error.message : String(error || '');
@@ -105,7 +155,7 @@ function App() {
     setIsLoadingProducts(true);
 
     try {
-      const data = await fetchJson('/api/v1/admin/products/all-products', 'Failed to load products.');
+      const data = await fetchJson(FRONTEND_API.admin.products.all, 'Failed to load products.');
       setProducts(Array.isArray(data) ? data.map(mapBackendProduct) : []);
     } catch (error) {
       setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load products.') });
@@ -118,7 +168,7 @@ function App() {
     setIsLoadingCategories(true);
 
     try {
-      const data = await fetchJson('/api/v1/admin/categories/all-categories', 'Failed to load categories.');
+      const data = await fetchJson(FRONTEND_API.admin.categories.all, 'Failed to load categories.');
       const mappedCategories = Array.isArray(data) ? data.map(mapBackendCategory) : [];
       setCategories(mappedCategories);
       setProductForm((current) => {
@@ -142,7 +192,7 @@ function App() {
     setIsLoadingParentOptions(true);
 
     try {
-      const data = await fetchJson('/api/v1/admin/categories/parent-options', 'Failed to load parent category options.');
+      const data = await fetchJson(FRONTEND_API.admin.categories.parentOptions, 'Failed to load parent category options.');
       setParentOptions(Array.isArray(data) ? data.map(mapBackendCategory) : []);
     } catch (error) {
       setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load parent category options.') });
@@ -155,7 +205,7 @@ function App() {
     setIsLoadingTags(true);
 
     try {
-      const data = await fetchJson('/api/v1/admin/tags/all-tags', 'Failed to load tags.');
+      const data = await fetchJson(FRONTEND_API.admin.tags.all, 'Failed to load tags.');
       setTags(Array.isArray(data) ? data.map(mapBackendTag) : []);
     } catch (error) {
       setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load tags.') });
@@ -164,12 +214,68 @@ function App() {
     }
   }, [fetchJson, normalizeRequestError]);
 
+  const loadHeroes = useCallback(async () => {
+    setIsLoadingHeroes(true);
+
+    try {
+      const data = await fetchJson(FRONTEND_API.admin.homepage.hero.all, 'Failed to load homepage heroes.');
+      setHeroes(Array.isArray(data) ? data.map(mapBackendHomepageHero) : []);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load homepage heroes.') });
+    } finally {
+      setIsLoadingHeroes(false);
+    }
+  }, [fetchJson, normalizeRequestError]);
+
+  const loadFeaturedCategories = useCallback(async () => {
+    setIsLoadingFeaturedCategories(true);
+
+    try {
+      const data = await fetchJson(FRONTEND_API.admin.homepage.featuredCategories.all, 'Failed to load featured categories.');
+      setFeaturedCategories(Array.isArray(data) ? data.map(mapBackendHomepageFeaturedCategory) : []);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load featured categories.') });
+    } finally {
+      setIsLoadingFeaturedCategories(false);
+    }
+  }, [fetchJson, normalizeRequestError]);
+
+  const loadNewArrivalRules = useCallback(async () => {
+    setIsLoadingNewArrivalRules(true);
+
+    try {
+      const data = await fetchJson(FRONTEND_API.admin.homepage.newArrivals.all, 'Failed to load new arrivals rules.');
+      setHomepageNewArrivalRules(Array.isArray(data) ? data.map(mapBackendHomepageNewArrivalRule) : []);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load new arrivals rules.') });
+    } finally {
+      setIsLoadingNewArrivalRules(false);
+    }
+  }, [fetchJson, normalizeRequestError]);
+
+  const loadTrendingProducts = useCallback(async () => {
+    setIsLoadingTrendingProducts(true);
+
+    try {
+      const data = await fetchJson(FRONTEND_API.admin.homepage.trendingProducts.all, 'Failed to load trending products.');
+      setHomepageTrendingProducts(Array.isArray(data) ? data.map(mapBackendHomepageTrendingProduct) : []);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load trending products.') });
+    } finally {
+      setIsLoadingTrendingProducts(false);
+    }
+  }, [fetchJson, normalizeRequestError]);
+
   useEffect(() => {
     loadProducts();
     loadCategories();
     loadParentOptions();
     loadTags();
-  }, [loadProducts, loadCategories, loadParentOptions, loadTags]);
+    loadFeaturedCategories();
+    loadHeroes();
+    loadNewArrivalRules();
+    loadTrendingProducts();
+  }, [loadProducts, loadCategories, loadParentOptions, loadTags, loadFeaturedCategories, loadHeroes, loadNewArrivalRules, loadTrendingProducts]);
 
   useEffect(() => {
     window.localStorage.setItem('spring-commerce-active-view', activeView);
@@ -252,6 +358,7 @@ function App() {
   );
 
   const navItems = useMemo(() => ([
+    { id: 'homepage', label: 'Homepage' },
     { id: 'products', label: 'Products' },
     { id: 'categories', label: 'Categories' },
     { id: 'tags', label: 'Tags' },
@@ -259,7 +366,22 @@ function App() {
     { id: 'orders', label: 'Orders', disabled: true },
   ]), []);
 
-  const viewMeta = activeView === 'categories'
+  const viewMeta = activeView === 'homepage'
+    ? {
+        eyebrow: 'Public Experience',
+        title: 'Homepage Studio',
+        actionLabel: 'New Hero',
+        action: () => setIsHeroComposerOpen(true),
+        refresh: () => {
+          loadProducts();
+          loadCategories();
+          loadFeaturedCategories();
+          loadHeroes();
+          loadNewArrivalRules();
+          loadTrendingProducts();
+        },
+      }
+    : activeView === 'categories'
     ? {
         eyebrow: 'Catalog Taxonomy',
         title: 'Categories',
@@ -314,6 +436,38 @@ function App() {
     }));
   }
 
+  function handleHeroChange(event) {
+    const { name, value, type, checked } = event.target;
+    setHeroForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  }
+
+  function handleFeaturedCategoryChange(event) {
+    const { name, value, type, checked } = event.target;
+    setFeaturedCategoryForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  }
+
+  function handleNewArrivalRuleChange(event) {
+    const { name, value, type, checked } = event.target;
+    setNewArrivalRuleForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  }
+
+  function handleTrendingProductChange(event) {
+    const { name, value, type, checked } = event.target;
+    setTrendingProductForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
+  }
+
   function toggleProductTag(tagId) {
     setProductForm((current) => {
       const nextIds = current.tagIds.includes(tagId)
@@ -335,7 +489,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(editingProductId ? `/api/v1/admin/products/${editingProductId}/update-product` : '/api/v1/admin/products/create-product', {
+        response = await fetch(editingProductId ? FRONTEND_API.admin.products.update(editingProductId) : FRONTEND_API.admin.products.create, {
           method: editingProductId ? 'PATCH' : 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -383,12 +537,17 @@ function App() {
       let response;
 
       try {
-        response = await fetch('/api/v1/admin/categories/create-category', {
-          method: 'POST',
+        const payload = buildCategoryPayload(categoryForm);
+        if (editingCategoryId && editingCategoryInitial && payload.isActive === editingCategoryInitial.isActive) {
+          delete payload.isActive;
+        }
+
+        response = await fetch(editingCategoryId ? FRONTEND_API.admin.categories.update(editingCategoryId) : FRONTEND_API.admin.categories.create, {
+          method: editingCategoryId ? 'PATCH' : 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(buildCategoryPayload(categoryForm)),
+          body: JSON.stringify(payload),
         });
       } catch (error) {
         throw new Error(normalizeRequestError(error, 'Something went wrong while creating the category.'));
@@ -403,12 +562,14 @@ function App() {
       }
 
       setLastResponse(data);
-      setToast({ type: 'success', message: 'Category created successfully.' });
+      setToast({ type: 'success', message: editingCategoryId ? 'Category updated successfully.' : 'Category created successfully.' });
       setCategoryForm(INITIAL_CATEGORY_FORM);
+      setEditingCategoryId(null);
+      setEditingCategoryInitial(null);
       setIsCategoryComposerOpen(false);
       await Promise.all([loadCategories(), loadParentOptions()]);
     } catch (error) {
-      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while creating the category.') });
+      setToast({ type: 'error', message: normalizeRequestError(error, editingCategoryId ? 'Something went wrong while updating the category.' : 'Something went wrong while creating the category.') });
     } finally {
       setIsSubmittingCategory(false);
     }
@@ -422,12 +583,17 @@ function App() {
       let response;
 
       try {
-        response = await fetch('/api/v1/admin/tags/create-tag', {
-          method: 'POST',
+        const payload = buildTagPayload(tagForm);
+        if (editingTagId && editingTagInitial && payload.isActive === editingTagInitial.isActive) {
+          delete payload.isActive;
+        }
+
+        response = await fetch(editingTagId ? FRONTEND_API.admin.tags.update(editingTagId) : FRONTEND_API.admin.tags.create, {
+          method: editingTagId ? 'PATCH' : 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(buildTagPayload(tagForm)),
+          body: JSON.stringify(payload),
         });
       } catch (error) {
         throw new Error(normalizeRequestError(error, 'Something went wrong while creating the tag.'));
@@ -442,14 +608,220 @@ function App() {
       }
 
       setLastResponse(data);
-      setToast({ type: 'success', message: 'Tag created successfully.' });
+      setToast({ type: 'success', message: editingTagId ? 'Tag updated successfully.' : 'Tag created successfully.' });
       setTagForm(INITIAL_TAG_FORM);
+      setEditingTagId(null);
+      setEditingTagInitial(null);
       setIsTagComposerOpen(false);
       await loadTags();
     } catch (error) {
-      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while creating the tag.') });
+      setToast({ type: 'error', message: normalizeRequestError(error, editingTagId ? 'Something went wrong while updating the tag.' : 'Something went wrong while creating the tag.') });
     } finally {
       setIsSubmittingTag(false);
+    }
+  }
+
+  async function handleHeroSubmit(event) {
+    event.preventDefault();
+    setIsSubmittingHero(true);
+
+    try {
+      const payload = buildHomepageHeroPayload(heroForm, editingHeroInitial, Boolean(editingHeroId));
+      let response;
+
+      try {
+        response = await fetch(editingHeroId ? FRONTEND_API.admin.homepage.hero.update(editingHeroId) : FRONTEND_API.admin.homepage.hero.create, {
+          method: editingHeroId ? 'PATCH' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Something went wrong while saving the hero.'));
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
+        throw new Error(normalizeRequestError(message, 'Something went wrong while saving the hero.'));
+      }
+
+      setLastResponse(data);
+      setToast({ type: 'success', message: editingHeroId ? 'Hero updated successfully.' : 'Hero created successfully.' });
+      setHeroForm(INITIAL_HOMEPAGE_HERO_FORM);
+      setEditingHeroId(null);
+      setEditingHeroInitial(null);
+      setIsHeroComposerOpen(false);
+      await loadHeroes();
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while saving the hero.') });
+    } finally {
+      setIsSubmittingHero(false);
+    }
+  }
+
+  async function handleFeaturedCategorySubmit(event) {
+    event.preventDefault();
+    setIsSubmittingFeaturedCategory(true);
+
+    try {
+      const payload = buildHomepageFeaturedCategoryPayload(
+        featuredCategoryForm,
+        editingFeaturedCategoryInitial,
+        Boolean(editingFeaturedCategoryId),
+      );
+      let response;
+
+      try {
+        response = await fetch(
+          editingFeaturedCategoryId
+            ? FRONTEND_API.admin.homepage.featuredCategories.update(editingFeaturedCategoryId)
+            : FRONTEND_API.admin.homepage.featuredCategories.create,
+          {
+            method: editingFeaturedCategoryId ? 'PATCH' : 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Something went wrong while saving the featured category.'));
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
+        throw new Error(normalizeRequestError(message, 'Something went wrong while saving the featured category.'));
+      }
+
+      setLastResponse(data);
+      setToast({
+        type: 'success',
+        message: editingFeaturedCategoryId ? 'Featured category updated successfully.' : 'Featured category created successfully.',
+      });
+      setFeaturedCategoryForm(INITIAL_HOMEPAGE_FEATURED_CATEGORY_FORM);
+      setEditingFeaturedCategoryId(null);
+      setEditingFeaturedCategoryInitial(null);
+      setIsFeaturedCategoryComposerOpen(false);
+      await loadFeaturedCategories();
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while saving the featured category.') });
+    } finally {
+      setIsSubmittingFeaturedCategory(false);
+    }
+  }
+
+  async function handleTrendingProductSubmit(event) {
+    event.preventDefault();
+    setIsSubmittingTrendingProduct(true);
+
+    try {
+      const payload = buildHomepageTrendingProductPayload(
+        trendingProductForm,
+        editingTrendingProductInitial,
+        Boolean(editingTrendingProductId),
+      );
+      let response;
+
+      try {
+        response = await fetch(
+          editingTrendingProductId
+            ? FRONTEND_API.admin.homepage.trendingProducts.update(editingTrendingProductId)
+            : FRONTEND_API.admin.homepage.trendingProducts.create,
+          {
+            method: editingTrendingProductId ? 'PATCH' : 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Something went wrong while saving the trending product.'));
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
+        throw new Error(normalizeRequestError(message, 'Something went wrong while saving the trending product.'));
+      }
+
+      setLastResponse(data);
+      setToast({
+        type: 'success',
+        message: editingTrendingProductId ? 'Trending product updated successfully.' : 'Trending product created successfully.',
+      });
+      setTrendingProductForm(INITIAL_HOMEPAGE_TRENDING_PRODUCT_FORM);
+      setEditingTrendingProductId(null);
+      setEditingTrendingProductInitial(null);
+      setIsTrendingProductComposerOpen(false);
+      await loadTrendingProducts();
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while saving the trending product.') });
+    } finally {
+      setIsSubmittingTrendingProduct(false);
+    }
+  }
+
+  async function handleNewArrivalRuleSubmit(event) {
+    event.preventDefault();
+    setIsSubmittingNewArrivalRule(true);
+
+    try {
+      const payload = buildHomepageNewArrivalPayload(
+        newArrivalRuleForm,
+        editingNewArrivalRuleInitial,
+        Boolean(editingNewArrivalRuleId),
+      );
+      let response;
+
+      try {
+        response = await fetch(
+          editingNewArrivalRuleId
+            ? FRONTEND_API.admin.homepage.newArrivals.update(editingNewArrivalRuleId)
+            : FRONTEND_API.admin.homepage.newArrivals.create,
+          {
+            method: editingNewArrivalRuleId ? 'PATCH' : 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Something went wrong while saving the arrivals rule.'));
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message = typeof data === 'string' ? data : data.message || data.error || 'Request failed.';
+        throw new Error(normalizeRequestError(message, 'Something went wrong while saving the arrivals rule.'));
+      }
+
+      setLastResponse(data);
+      setToast({
+        type: 'success',
+        message: editingNewArrivalRuleId ? 'New arrivals rule updated successfully.' : 'New arrivals rule created successfully.',
+      });
+      setNewArrivalRuleForm(INITIAL_HOMEPAGE_NEW_ARRIVAL_FORM);
+      setEditingNewArrivalRuleId(null);
+      setEditingNewArrivalRuleInitial(null);
+      setIsNewArrivalComposerOpen(false);
+      await loadNewArrivalRules();
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Something went wrong while saving the arrivals rule.') });
+    } finally {
+      setIsSubmittingNewArrivalRule(false);
     }
   }
 
@@ -476,6 +848,7 @@ function App() {
       name: product.name,
       description: product.description ?? '',
       price: String(product.price ?? ''),
+      compareAt: product.compareAt > 0 ? String(product.compareAt) : '',
       stockQuantity: String(product.stockQuantity ?? 0),
       categoryId: matchingCategory ? String(matchingCategory.id) : '',
       tagIds: tags
@@ -559,39 +932,445 @@ function App() {
     }
   }
 
-  function openEntityDetails(title, subtitle, fields) {
-    setDetailModal({ title, subtitle, fields });
+  function openEntityDetails(title, subtitle, fields, actions = []) {
+    setDetailModal({ title, subtitle, fields, actions });
   }
 
-  function handleViewCategory(category) {
-    openEntityDetails(category.name, 'Category Details', [
-      { label: 'Slug', value: category.slug },
-      { label: 'Parent', value: category.parentName || 'Root' },
-      { label: 'Description', value: category.description || 'No description' },
-      { label: 'State', value: category.isActive ? 'Active' : 'Inactive' },
+  function handleViewHero(hero) {
+    openEntityDetails(hero.title || 'Hero', 'Homepage Hero', [
+      { label: 'Eyebrow', value: hero.eyebrow || 'Not set' },
+      { label: 'CTA Label', value: hero.ctaLabel || 'Not set' },
+      { label: 'CTA Url', value: hero.ctaUrl || 'Not set' },
+      { label: 'Product Link', value: hero.linkProductId || 'Not linked' },
+      { label: 'Category Link', value: hero.linkCategoryId || 'Not linked' },
+      { label: 'State', value: hero.isActive ? 'Active' : 'Inactive' },
+      { label: 'Order', value: hero.displayOrder ?? 'Not set' },
+    ], [
+      {
+        label: 'Edit',
+        onClick: () => {
+          setDetailModal(null);
+          handleEditHero(hero);
+        },
+      },
+      {
+        label: 'Delete',
+        tone: 'danger',
+        onClick: () => {
+          setDetailModal(null);
+          handleDeleteHero(hero);
+        },
+      },
     ]);
   }
 
-  function handleViewTag(tag) {
-    openEntityDetails(tag.name, 'Tag Details', [
-      { label: 'Slug', value: tag.slug },
-      { label: 'Description', value: tag.description || 'No description' },
-      { label: 'State', value: tag.isActive ? 'Active' : 'Inactive' },
+  function handleViewHomepageFeaturedCategory(featuredCategory) {
+    openEntityDetails(featuredCategory.categoryName || 'Featured category', 'Homepage Featured Category', [
+      { label: 'Caption', value: featuredCategory.caption || 'Not set' },
+      { label: 'Image Url', value: featuredCategory.imageUrl || 'Not set' },
+      { label: 'Emphasis', value: featuredCategory.emphasis || 'REGULAR' },
+      { label: 'Category', value: featuredCategory.categoryName || 'Not linked' },
+      { label: 'State', value: featuredCategory.isActive ? 'Active' : 'Inactive' },
+      { label: 'Order', value: featuredCategory.displayOrder ?? 'Not set' },
+    ], [
+      {
+        label: 'Edit',
+        onClick: () => {
+          setDetailModal(null);
+          handleEditFeaturedCategory(featuredCategory);
+        },
+      },
+      {
+        label: 'Delete',
+        tone: 'danger',
+        onClick: () => {
+          setDetailModal(null);
+          handleDeleteFeaturedCategory(featuredCategory);
+        },
+      },
     ]);
   }
 
-  function handlePendingAction(label) {
-    setToast({ type: 'error', message: `${label} is ready in the UI. Implement the backend API next.` });
+  function handleViewHomepageTrendingProduct(trendingProduct) {
+    const linkedProduct = products.find((item) => String(item.id) === String(trendingProduct.productId));
+
+    openEntityDetails(linkedProduct?.name || 'Trending product', 'Homepage Trending Product', [
+      { label: 'Label', value: trendingProduct.label || 'Not set' },
+      { label: 'Linked Product', value: linkedProduct?.name || trendingProduct.productId || 'Missing' },
+      { label: 'Category', value: linkedProduct?.category || 'Not set' },
+        { label: 'Price', value: linkedProduct ? `$${Number(linkedProduct.price || 0).toFixed(2)}` : 'Not set' },
+        { label: 'Compare-at', value: linkedProduct?.compareAt > 0 ? `$${Number(linkedProduct.compareAt).toFixed(2)}` : 'Not set' },
+        { label: 'State', value: trendingProduct.isActive ? 'Active' : 'Inactive' },
+        { label: 'Order', value: trendingProduct.displayOrder ?? 'Not set' },
+      ], [
+        {
+          label: 'Edit',
+          onClick: () => {
+            setDetailModal(null);
+            handleEditTrendingProduct(trendingProduct);
+          },
+        },
+        {
+          label: 'Delete',
+          tone: 'danger',
+          onClick: () => {
+            setDetailModal(null);
+            handleDeleteTrendingProduct(trendingProduct);
+          },
+        },
+      ]);
+  }
+
+  function handleViewHomepageNewArrivalRule(rule) {
+    openEntityDetails(`Limit ${rule.limitCount || 0}`, 'Homepage New Arrivals Rule', [
+      { label: 'Category', value: rule.categoryName || 'All categories' },
+      { label: 'Tag', value: rule.tagName || 'All tags' },
+      { label: 'Only Active', value: rule.onlyActive ? 'Yes' : 'No' },
+      { label: 'State', value: rule.isActive ? 'Active' : 'Inactive' },
+    ], [
+      {
+        label: 'Edit',
+        onClick: () => {
+          setDetailModal(null);
+          handleEditNewArrivalRule(rule);
+        },
+      },
+      {
+        label: 'Delete',
+        tone: 'danger',
+        onClick: () => {
+          setDetailModal(null);
+          handleDeleteNewArrivalRule(rule);
+        },
+      },
+    ]);
+  }
+
+  async function handleViewCategory(category) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/categories/${category.id}/category`, 'Failed to load category details.');
+      const resolvedCategory = mapBackendCategory(data);
+
+      openEntityDetails(resolvedCategory.name, 'Category Details', [
+        { label: 'Slug', value: resolvedCategory.slug },
+        { label: 'Parent', value: resolvedCategory.parentName || 'Root' },
+        { label: 'Description', value: resolvedCategory.description || 'No description' },
+        { label: 'State', value: resolvedCategory.isActive ? 'Active' : 'Inactive' },
+      ]);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load category details.') });
+    }
+  }
+
+  async function handleEditCategory(category) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/categories/${category.id}/category`, 'Failed to load category details.');
+      const resolvedCategory = mapBackendCategory(data);
+
+      setEditingCategoryId(resolvedCategory.id);
+      setEditingCategoryInitial({
+        isActive: Boolean(resolvedCategory.isActive),
+      });
+      setCategoryForm({
+        name: resolvedCategory.name || '',
+        description: resolvedCategory.description || '',
+        parentId: resolvedCategory.parentId ? String(resolvedCategory.parentId) : '',
+        isActive: Boolean(resolvedCategory.isActive),
+      });
+      setIsCategoryComposerOpen(true);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load category details.') });
+    }
+  }
+
+  async function handleDeleteCategory(category) {
+    if (!window.confirm(`Delete category "${category.name}"?`)) {
+      return;
+    }
+
+    try {
+      let response;
+
+      try {
+        response = await fetch(`/api/v1/admin/categories/${category.id}/category`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to delete category.'));
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(normalizeRequestError(text, 'Failed to delete category.'));
+      }
+
+      setCategories((current) => current.filter((item) => item.id !== category.id));
+      setParentOptions((current) => current.filter((item) => item.id !== category.id));
+      setToast({ type: 'success', message: 'Category deleted successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete category.') });
+    }
+  }
+
+  async function handleViewTag(tag) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/tags/${tag.id}/tag`, 'Failed to load tag details.');
+      const resolvedTag = mapBackendTag(data);
+
+      openEntityDetails(resolvedTag.name, 'Tag Details', [
+        { label: 'Slug', value: resolvedTag.slug },
+        { label: 'Description', value: resolvedTag.description || 'No description' },
+        { label: 'State', value: resolvedTag.isActive ? 'Active' : 'Inactive' },
+      ]);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load tag details.') });
+    }
+  }
+
+  async function handleEditTag(tag) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/tags/${tag.id}/tag`, 'Failed to load tag details.');
+      const resolvedTag = mapBackendTag(data);
+
+      setEditingTagId(resolvedTag.id);
+      setEditingTagInitial({
+        isActive: Boolean(resolvedTag.isActive),
+      });
+      setTagForm({
+        name: resolvedTag.name || '',
+        description: resolvedTag.description || '',
+        isActive: Boolean(resolvedTag.isActive),
+      });
+      setIsTagComposerOpen(true);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load tag details.') });
+    }
+  }
+
+  async function handleDeleteTag(tag) {
+    if (!window.confirm(`Delete tag "${tag.name}"?`)) {
+      return;
+    }
+
+    try {
+      let response;
+
+      try {
+        response = await fetch(`/api/v1/admin/tags/${tag.id}/tag`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to delete tag.'));
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(normalizeRequestError(text, 'Failed to delete tag.'));
+      }
+
+      setTags((current) => current.filter((item) => item.id !== tag.id));
+      setToast({ type: 'success', message: 'Tag deleted successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete tag.') });
+    }
+  }
+
+  async function handleEditHero(hero) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/homepage/hero/${hero.id}/hero`, 'Failed to load hero details.');
+      const resolvedHero = mapBackendHomepageHero(data);
+
+      setEditingHeroId(resolvedHero.id);
+      setEditingHeroInitial({
+        ...resolvedHero,
+        unlinkProduct: false,
+        unlinkCategory: false,
+      });
+      setHeroForm({
+        ...INITIAL_HOMEPAGE_HERO_FORM,
+        ...resolvedHero,
+        unlinkProduct: false,
+        unlinkCategory: false,
+      });
+      setIsHeroComposerOpen(true);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load hero details.') });
+    }
+  }
+
+  async function handleDeleteHero(hero) {
+    if (!window.confirm(`Delete hero "${hero.title}"?`)) {
+      return;
+    }
+
+    try {
+      let response;
+
+      try {
+        response = await fetch(`/api/v1/admin/homepage/hero/${hero.id}/hero`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to delete hero.'));
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(normalizeRequestError(text, 'Failed to delete hero.'));
+      }
+
+      setHeroes((current) => current.filter((item) => item.id !== hero.id));
+      setToast({ type: 'success', message: 'Hero deleted successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete hero.') });
+    }
+  }
+
+  async function handleEditFeaturedCategory(featuredCategory) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/homepage/featured-categories/${featuredCategory.id}`, 'Failed to load featured category details.');
+      const resolvedFeaturedCategory = mapBackendHomepageFeaturedCategory(data);
+
+      setEditingFeaturedCategoryId(resolvedFeaturedCategory.id);
+      setEditingFeaturedCategoryInitial(resolvedFeaturedCategory);
+      setFeaturedCategoryForm({
+        ...INITIAL_HOMEPAGE_FEATURED_CATEGORY_FORM,
+        ...resolvedFeaturedCategory,
+      });
+      setIsFeaturedCategoryComposerOpen(true);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load featured category details.') });
+    }
+  }
+
+  async function handleDeleteFeaturedCategory(featuredCategory) {
+    if (!window.confirm(`Delete featured category tile for "${featuredCategory.categoryName}"?`)) {
+      return;
+    }
+
+    try {
+      let response;
+
+      try {
+        response = await fetch(`/api/v1/admin/homepage/featured-categories/${featuredCategory.id}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to delete featured category.'));
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(normalizeRequestError(text, 'Failed to delete featured category.'));
+      }
+
+      setFeaturedCategories((current) => current.filter((item) => item.id !== featuredCategory.id));
+      setToast({ type: 'success', message: 'Featured category deleted successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete featured category.') });
+    }
+  }
+
+  async function handleEditTrendingProduct(trendingProduct) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/homepage/trending-products/${trendingProduct.id}`, 'Failed to load trending product details.');
+      const resolvedTrendingProduct = mapBackendHomepageTrendingProduct(data);
+
+      setEditingTrendingProductId(resolvedTrendingProduct.id);
+      setEditingTrendingProductInitial(resolvedTrendingProduct);
+      setTrendingProductForm({
+        ...INITIAL_HOMEPAGE_TRENDING_PRODUCT_FORM,
+        ...resolvedTrendingProduct,
+      });
+      setIsTrendingProductComposerOpen(true);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load trending product details.') });
+    }
+  }
+
+  async function handleDeleteTrendingProduct(trendingProduct) {
+    const productName = products.find((item) => String(item.id) === trendingProduct.productId)?.name || 'this trending product';
+    if (!window.confirm(`Delete trending item for "${productName}"?`)) {
+      return;
+    }
+
+    try {
+      let response;
+
+      try {
+        response = await fetch(`/api/v1/admin/homepage/trending-products/${trendingProduct.id}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to delete trending product.'));
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(normalizeRequestError(text, 'Failed to delete trending product.'));
+      }
+
+      setHomepageTrendingProducts((current) => current.filter((item) => item.id !== trendingProduct.id));
+      setToast({ type: 'success', message: 'Trending product deleted successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete trending product.') });
+    }
+  }
+
+  async function handleEditNewArrivalRule(rule) {
+    try {
+      const data = await fetchJson(`/api/v1/admin/homepage/new-arrivals/${rule.id}`, 'Failed to load new arrivals rule details.');
+      const resolvedRule = mapBackendHomepageNewArrivalRule(data);
+
+      setEditingNewArrivalRuleId(resolvedRule.id);
+      setEditingNewArrivalRuleInitial(resolvedRule);
+      setNewArrivalRuleForm({
+        ...INITIAL_HOMEPAGE_NEW_ARRIVAL_FORM,
+        ...resolvedRule,
+      });
+      setIsNewArrivalComposerOpen(true);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load new arrivals rule details.') });
+    }
+  }
+
+  async function handleDeleteNewArrivalRule(rule) {
+    if (!window.confirm('Delete this new arrivals rule?')) {
+      return;
+    }
+
+    try {
+      let response;
+
+      try {
+        response = await fetch(`/api/v1/admin/homepage/new-arrivals/${rule.id}`, {
+          method: 'DELETE',
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, 'Failed to delete new arrivals rule.'));
+      }
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(normalizeRequestError(text, 'Failed to delete new arrivals rule.'));
+      }
+
+      setHomepageNewArrivalRules((current) => current.filter((item) => item.id !== rule.id));
+      setToast({ type: 'success', message: 'New arrivals rule deleted successfully.' });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete new arrivals rule.') });
+    }
   }
 
   return (
     <div className="app-shell">
       {toast ? <Toast type={toast.type} message={toast.message} /> : null}
-      {detailModal ? (
-        <EntityDetailsModal
-          fields={detailModal.fields}
-          onClose={() => setDetailModal(null)}
-          subtitle={detailModal.subtitle}
+        {detailModal ? (
+          <EntityDetailsModal
+            actions={detailModal.actions}
+            fields={detailModal.fields}
+            onClose={() => setDetailModal(null)}
+            subtitle={detailModal.subtitle}
           title={detailModal.title}
         />
       ) : null}
@@ -639,8 +1418,14 @@ function App() {
           form={categoryForm}
           isLoadingParentOptions={isLoadingParentOptions}
           isSubmitting={isSubmittingCategory}
+          mode={editingCategoryId ? 'edit' : 'create'}
           onChange={handleCategoryChange}
-          onClose={() => setIsCategoryComposerOpen(false)}
+          onClose={() => {
+            setIsCategoryComposerOpen(false);
+            setEditingCategoryId(null);
+            setEditingCategoryInitial(null);
+            setCategoryForm(INITIAL_CATEGORY_FORM);
+          }}
           onSubmit={handleCategorySubmit}
           parentOptions={parentOptions}
         />
@@ -649,9 +1434,81 @@ function App() {
         <TagComposer
           form={tagForm}
           isSubmitting={isSubmittingTag}
+          mode={editingTagId ? 'edit' : 'create'}
           onChange={handleTagChange}
-          onClose={() => setIsTagComposerOpen(false)}
+          onClose={() => {
+            setIsTagComposerOpen(false);
+            setEditingTagId(null);
+            setEditingTagInitial(null);
+            setTagForm(INITIAL_TAG_FORM);
+          }}
           onSubmit={handleTagSubmit}
+        />
+      ) : null}
+      {isHeroComposerOpen ? (
+        <HomepageHeroComposer
+          categories={categories}
+          form={heroForm}
+          isSubmitting={isSubmittingHero}
+          mode={editingHeroId ? 'edit' : 'create'}
+          onChange={handleHeroChange}
+          onClose={() => {
+            setIsHeroComposerOpen(false);
+            setEditingHeroId(null);
+            setEditingHeroInitial(null);
+            setHeroForm(INITIAL_HOMEPAGE_HERO_FORM);
+          }}
+          onSubmit={handleHeroSubmit}
+          products={products}
+        />
+      ) : null}
+      {isNewArrivalComposerOpen ? (
+        <HomepageNewArrivalComposer
+          categories={categories}
+          form={newArrivalRuleForm}
+          isSubmitting={isSubmittingNewArrivalRule}
+          mode={editingNewArrivalRuleId ? 'edit' : 'create'}
+          onChange={handleNewArrivalRuleChange}
+          onClose={() => {
+            setIsNewArrivalComposerOpen(false);
+            setEditingNewArrivalRuleId(null);
+            setEditingNewArrivalRuleInitial(null);
+            setNewArrivalRuleForm(INITIAL_HOMEPAGE_NEW_ARRIVAL_FORM);
+          }}
+          onSubmit={handleNewArrivalRuleSubmit}
+          tags={tags}
+        />
+      ) : null}
+      {isFeaturedCategoryComposerOpen ? (
+        <HomepageFeaturedCategoryComposer
+          categories={categories}
+          form={featuredCategoryForm}
+          isSubmitting={isSubmittingFeaturedCategory}
+          mode={editingFeaturedCategoryId ? 'edit' : 'create'}
+          onChange={handleFeaturedCategoryChange}
+          onClose={() => {
+            setIsFeaturedCategoryComposerOpen(false);
+            setEditingFeaturedCategoryId(null);
+            setEditingFeaturedCategoryInitial(null);
+            setFeaturedCategoryForm(INITIAL_HOMEPAGE_FEATURED_CATEGORY_FORM);
+          }}
+          onSubmit={handleFeaturedCategorySubmit}
+        />
+      ) : null}
+      {isTrendingProductComposerOpen ? (
+        <HomepageTrendingProductComposer
+          form={trendingProductForm}
+          isSubmitting={isSubmittingTrendingProduct}
+          mode={editingTrendingProductId ? 'edit' : 'create'}
+          onChange={handleTrendingProductChange}
+          onClose={() => {
+            setIsTrendingProductComposerOpen(false);
+            setEditingTrendingProductId(null);
+            setEditingTrendingProductInitial(null);
+            setTrendingProductForm(INITIAL_HOMEPAGE_TRENDING_PRODUCT_FORM);
+          }}
+          onSubmit={handleTrendingProductSubmit}
+          products={products}
         />
       ) : null}
 
@@ -682,7 +1539,37 @@ function App() {
           </div>
         </section>
 
-        {activeView === 'products' ? (
+        {activeView === 'homepage' ? (
+            <HomepageView
+              categories={categories}
+              featuredCategories={featuredCategories}
+              heroes={heroes}
+            isLoadingNewArrivalRules={isLoadingNewArrivalRules}
+            isLoadingFeaturedCategories={isLoadingFeaturedCategories}
+            isLoadingHeroes={isLoadingHeroes}
+            isLoadingTrendingProducts={isLoadingTrendingProducts}
+            onAddFeaturedCategory={() => setIsFeaturedCategoryComposerOpen(true)}
+            onAddNewArrivalRule={() => setIsNewArrivalComposerOpen(true)}
+            onAddTrendingProduct={() => setIsTrendingProductComposerOpen(true)}
+            onDeleteFeaturedCategory={handleDeleteFeaturedCategory}
+            onDeleteNewArrivalRule={handleDeleteNewArrivalRule}
+            onEditFeaturedCategory={handleEditFeaturedCategory}
+            onAddHero={() => setIsHeroComposerOpen(true)}
+            onDeleteHero={handleDeleteHero}
+              onDeleteTrendingProduct={handleDeleteTrendingProduct}
+              onEditHero={handleEditHero}
+              onEditNewArrivalRule={handleEditNewArrivalRule}
+              onEditTrendingProduct={handleEditTrendingProduct}
+              onViewFeaturedCategory={handleViewHomepageFeaturedCategory}
+              onViewHero={handleViewHero}
+              onViewNewArrivalRule={handleViewHomepageNewArrivalRule}
+              onViewTrendingProduct={handleViewHomepageTrendingProduct}
+              newArrivalRules={homepageNewArrivalRules}
+              products={products}
+              tags={tags}
+            trendingProducts={homepageTrendingProducts}
+          />
+        ) : activeView === 'products' ? (
           <ProductsView
             activeStatusFilter={activeProductStatusFilter}
             isLoadingProducts={isLoadingProducts}
@@ -700,8 +1587,8 @@ function App() {
             categorySummary={categorySummary}
             isLoadingCategories={isLoadingCategories}
             onAddCategory={() => setIsCategoryComposerOpen(true)}
-            onDeleteCategory={() => handlePendingAction('Delete category')}
-            onEditCategory={() => handlePendingAction('Edit category')}
+            onDeleteCategory={handleDeleteCategory}
+            onEditCategory={handleEditCategory}
             onViewCategory={handleViewCategory}
             parentOptions={parentOptions}
           />
@@ -709,8 +1596,8 @@ function App() {
           <TagsView
             isLoadingTags={isLoadingTags}
             onAddTag={() => setIsTagComposerOpen(true)}
-            onDeleteTag={() => handlePendingAction('Delete tag')}
-            onEditTag={() => handlePendingAction('Edit tag')}
+            onDeleteTag={handleDeleteTag}
+            onEditTag={handleEditTag}
             onViewTag={handleViewTag}
             tagSummary={tagSummary}
             tags={tags}

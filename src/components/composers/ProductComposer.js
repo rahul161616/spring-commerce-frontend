@@ -26,6 +26,19 @@ function ProductComposer({ categories, form, isLoadingCategories, isLoadingTags,
               <input name="price" type="number" step="0.01" value={form.price} onChange={onChange} required />
             </label>
 
+            <label className="field">
+              <span>Compare-at price</span>
+              <input
+                name="compareAt"
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.compareAt}
+                onChange={onChange}
+                placeholder="Optional"
+              />
+            </label>
+
             <label className="field field-full">
               <span>Description</span>
               <textarea

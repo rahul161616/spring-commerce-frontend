@@ -1,4 +1,4 @@
-function EntityDetailsModal({ fields, onClose, subtitle, title }) {
+function EntityDetailsModal({ actions = [], fields, onClose, subtitle, title }) {
   return (
     <div className="composer-backdrop" role="presentation" onClick={onClose}>
       <section
@@ -23,6 +23,21 @@ function EntityDetailsModal({ fields, onClose, subtitle, title }) {
             </div>
           ))}
         </div>
+
+        {actions.length ? (
+          <div className="composer-actions">
+            {actions.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className={action.tone === 'danger' ? 'ghost-button detail-danger' : 'primary-button compact'}
+                onClick={action.onClick}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </section>
     </div>
   );

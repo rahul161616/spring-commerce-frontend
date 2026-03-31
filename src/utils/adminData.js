@@ -26,6 +26,13 @@ export function mapBackendProduct(item) {
     sku: item.slug || '--',
     description: item.description ?? '',
     price: Number(item.price ?? 0),
+    compareAt: item.compareAt != null
+      ? Number(item.compareAt)
+      : item.compareAtPrice != null
+        ? Number(item.compareAtPrice)
+        : item.compare_at != null
+          ? Number(item.compare_at)
+          : 0,
     stockQuantity: Number(item.stockQuantity ?? 0),
     isFeatured: Boolean(item.isFeatured),
     status: item.status || 'DRAFT',
@@ -80,6 +87,10 @@ export function buildProductPayload(productForm) {
     images,
     isFeatured: productForm.isFeatured,
   };
+
+  if (productForm.compareAt !== '') {
+    payload.compareAt = Number(productForm.compareAt);
+  }
 
   if (productForm.description !== undefined) {
     payload.description = productForm.description.trim();

@@ -1,11 +1,17 @@
-function TagComposer({ form, isSubmitting, onChange, onClose, onSubmit }) {
+function TagComposer({ form, isSubmitting, mode = 'create', onChange, onClose, onSubmit }) {
+  const isEdit = mode === 'edit';
+  const tagStateLabel = form.isActive ? 'Active' : 'Inactive';
+  const tagStateHint = form.isActive
+    ? 'Turn this off to make the tag inactive.'
+    : 'Turn this on to make the tag active.';
+
   return (
     <div className="composer-backdrop" role="dialog" aria-modal="true">
       <div className="composer-panel">
         <div className="panel-header">
           <div>
-            <p className="eyebrow">New Tag</p>
-            <h3>Create tag</h3>
+            <p className="eyebrow">{isEdit ? 'Edit Tag' : 'New Tag'}</p>
+            <h3>{isEdit ? 'Update tag' : 'Create tag'}</h3>
           </div>
           <button type="button" className="close-button" onClick={onClose}>Close</button>
         </div>
@@ -25,13 +31,14 @@ function TagComposer({ form, isSubmitting, onChange, onClose, onSubmit }) {
 
           <label className="toggle-row">
             <input name="isActive" type="checkbox" checked={form.isActive} onChange={onChange} />
-            <span>Active tag</span>
+            <span>{`Tag status: ${tagStateLabel}`}</span>
+            <small>{tagStateHint}</small>
           </label>
 
           <div className="composer-actions">
             <button type="button" className="ghost-button" onClick={onClose}>Cancel</button>
             <button type="submit" className="primary-button compact" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating...' : 'Create Tag'}
+              {isSubmitting ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Tag' : 'Create Tag')}
             </button>
           </div>
         </form>
