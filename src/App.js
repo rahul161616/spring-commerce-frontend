@@ -14,6 +14,7 @@ import Topbar from './components/layout/Topbar';
 import Toast from './components/shared/Toast';
 import CategoriesView from './views/CategoriesView';
 import HomepageView from './views/HomepageView';
+import OrdersView from './views/OrdersView';
 import ProductsView from './views/ProductsView';
 import TagsView from './views/TagsView';
 import {
@@ -38,10 +39,56 @@ import {
   mapBackendHomepageHero,
   mapBackendHomepageNewArrivalRule,
   mapBackendHomepageTrendingProduct,
+  mapBackendOrderAdmin,
   mapBackendProduct,
   mapBackendTag,
 } from './api/admin';
 import { FRONTEND_API } from './api/apiConstants';
+
+const AUTH_STORAGE_KEYS = ['admin_auth_session', 'storefront_auth_session'];
+
+function parseJwtPayload(token) {
+  if (!token) {
+    return null;
+  }
+
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    return JSON.parse(window.atob(padded));
+  } catch (error) {
+    return null;
+  }
+}
+
+function AdminAccessGate({ isAuthenticated, onGoLogin, onGoStorefront }) {
+  return (
+    <div className="admin-access-gate">
+      <div className="admin-access-panel">
+        <p className="eyebrow">Admin Access</p>
+        <h2>{isAuthenticated ? 'You cannot access this page.' : 'Login is required.'}</h2>
+        <p>
+          {isAuthenticated
+            ? 'Your current account does not have admin privileges. Sign in with an admin account to continue.'
+            : 'Sign in with an admin account to open the management panel.'}
+        </p>
+        <div className="admin-access-actions">
+          <button type="button" className="primary-button" onClick={onGoLogin}>
+            Go To Login
+          </button>
+          <button type="button" className="ghost-button" onClick={onGoStorefront}>
+            Back To Storefront
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const PRODUCT_STATUS_FILTERS = [
@@ -80,6 +127,7 @@ function App() {
   const [isLoadingHeroes, setIsLoadingHeroes] = useState(true);
   const [isLoadingNewArrivalRules, setIsLoadingNewArrivalRules] = useState(true);
   const [isLoadingTrendingProducts, setIsLoadingTrendingProducts] = useState(true);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
   const [lastResponse, setLastResponse] = useState(null);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -88,6 +136,7 @@ function App() {
   const [heroes, setHeroes] = useState([]);
   const [homepageNewArrivalRules, setHomepageNewArrivalRules] = useState([]);
   const [homepageTrendingProducts, setHomepageTrendingProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [parentOptions, setParentOptions] = useState([]);
   const [isProductComposerOpen, setIsProductComposerOpen] = useState(false);
   const [isCategoryComposerOpen, setIsCategoryComposerOpen] = useState(false);
@@ -129,11 +178,60 @@ function App() {
     return rawMessage || fallbackMessage;
   }, []);
 
+  const getAuthSession = useCallback(() => {
+    for (const storageKey of AUTH_STORAGE_KEYS) {
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        if (!raw) {
+          continue;
+        }
+
+        const parsed = JSON.parse(raw);
+        const token = parsed?.accessToken || parsed?.token || '';
+        if (token) {
+          return {
+            token,
+            payload: parseJwtPayload(token),
+          };
+        }
+      } catch (error) {
+        // Ignore malformed storage and continue checking known keys.
+      }
+    }
+
+    return null;
+  }, []);
+
+  const getAccessToken = useCallback(() => getAuthSession()?.token || '', [getAuthSession]);
+
+  const hasAdminAccess = useMemo(() => {
+    const session = getAuthSession();
+    const roles = Array.isArray(session?.payload?.roles) ? session.payload.roles : [];
+    return roles.includes('ADMIN') || roles.includes('ROLE_ADMIN');
+  }, [getAuthSession]);
+  const isAuthenticated = Boolean(getAccessToken());
+
+  const authFetch = useCallback(async (url, options = {}) => {
+    const token = getAccessToken();
+    const headers = {
+      ...(options.headers || {}),
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return fetch(url, {
+      ...options,
+      headers,
+    });
+  }, [getAccessToken]);
+
   const fetchJson = useCallback(async (url, fallbackMessage) => {
     let response;
 
     try {
-      response = await fetch(url);
+      response = await authFetch(url);
     } catch (error) {
       throw new Error(normalizeRequestError(error, fallbackMessage));
     }
@@ -142,6 +240,10 @@ function App() {
     const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Admin session is unauthorized. Log in again with an admin account.');
+      }
+
       const message = typeof data === 'string'
         ? data
         : data.message || data.error || fallbackMessage;
@@ -149,7 +251,7 @@ function App() {
     }
 
     return data;
-  }, [normalizeRequestError]);
+  }, [authFetch, normalizeRequestError]);
 
   const loadProducts = useCallback(async () => {
     setIsLoadingProducts(true);
@@ -266,7 +368,24 @@ function App() {
     }
   }, [fetchJson, normalizeRequestError]);
 
+  const loadOrders = useCallback(async () => {
+    setIsLoadingOrders(true);
+
+    try {
+      const data = await fetchJson(FRONTEND_API.admin.orders.all, 'Failed to load orders.');
+      setOrders(Array.isArray(data) ? data.map(mapBackendOrderAdmin) : []);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load orders.') });
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  }, [fetchJson, normalizeRequestError]);
+
   useEffect(() => {
+    if (!hasAdminAccess) {
+      return;
+    }
+
     loadProducts();
     loadCategories();
     loadParentOptions();
@@ -275,7 +394,8 @@ function App() {
     loadHeroes();
     loadNewArrivalRules();
     loadTrendingProducts();
-  }, [loadProducts, loadCategories, loadParentOptions, loadTags, loadFeaturedCategories, loadHeroes, loadNewArrivalRules, loadTrendingProducts]);
+    loadOrders();
+  }, [hasAdminAccess, loadProducts, loadCategories, loadParentOptions, loadTags, loadFeaturedCategories, loadHeroes, loadNewArrivalRules, loadTrendingProducts, loadOrders]);
 
   useEffect(() => {
     window.localStorage.setItem('spring-commerce-active-view', activeView);
@@ -349,6 +469,15 @@ function App() {
     return { totalTags, activeTags, inactiveTags };
   }, [tags]);
 
+  const orderSummary = useMemo(() => {
+    const totalOrders = orders.length;
+    const pendingPayment = orders.filter((item) => item.status === 'PENDING_PAYMENT').length;
+    const paymentSubmitted = orders.filter((item) => item.status === 'PAYMENT_SUBMITTED').length;
+    const paymentVerified = orders.filter((item) => item.status === 'PAYMENT_VERIFIED').length;
+
+    return { totalOrders, pendingPayment, paymentSubmitted, paymentVerified };
+  }, [orders]);
+
   const productCategoryOptions = useMemo(
     () => categories.map((item) => ({
       id: String(item.id),
@@ -363,7 +492,7 @@ function App() {
     { id: 'categories', label: 'Categories' },
     { id: 'tags', label: 'Tags' },
     { id: 'customers', label: 'Customers', disabled: true },
-    { id: 'orders', label: 'Orders', disabled: true },
+    { id: 'orders', label: 'Orders' },
   ]), []);
 
   const viewMeta = activeView === 'homepage'
@@ -400,6 +529,14 @@ function App() {
           action: () => setIsTagComposerOpen(true),
           refresh: loadTags,
         }
+      : activeView === 'orders'
+        ? {
+            eyebrow: 'Checkout Operations',
+            title: 'Orders',
+            actionLabel: 'Refresh Orders',
+            action: loadOrders,
+            refresh: loadOrders,
+          }
       : {
           eyebrow: 'Product Overview',
           title: 'Products',
@@ -489,7 +626,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(editingProductId ? FRONTEND_API.admin.products.update(editingProductId) : FRONTEND_API.admin.products.create, {
+        response = await authFetch(editingProductId ? FRONTEND_API.admin.products.update(editingProductId) : FRONTEND_API.admin.products.create, {
           method: editingProductId ? 'PATCH' : 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -542,7 +679,7 @@ function App() {
           delete payload.isActive;
         }
 
-        response = await fetch(editingCategoryId ? FRONTEND_API.admin.categories.update(editingCategoryId) : FRONTEND_API.admin.categories.create, {
+        response = await authFetch(editingCategoryId ? FRONTEND_API.admin.categories.update(editingCategoryId) : FRONTEND_API.admin.categories.create, {
           method: editingCategoryId ? 'PATCH' : 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -588,7 +725,7 @@ function App() {
           delete payload.isActive;
         }
 
-        response = await fetch(editingTagId ? FRONTEND_API.admin.tags.update(editingTagId) : FRONTEND_API.admin.tags.create, {
+        response = await authFetch(editingTagId ? FRONTEND_API.admin.tags.update(editingTagId) : FRONTEND_API.admin.tags.create, {
           method: editingTagId ? 'PATCH' : 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -630,7 +767,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(editingHeroId ? FRONTEND_API.admin.homepage.hero.update(editingHeroId) : FRONTEND_API.admin.homepage.hero.create, {
+        response = await authFetch(editingHeroId ? FRONTEND_API.admin.homepage.hero.update(editingHeroId) : FRONTEND_API.admin.homepage.hero.create, {
           method: editingHeroId ? 'PATCH' : 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -676,7 +813,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(
+        response = await authFetch(
           editingFeaturedCategoryId
             ? FRONTEND_API.admin.homepage.featuredCategories.update(editingFeaturedCategoryId)
             : FRONTEND_API.admin.homepage.featuredCategories.create,
@@ -730,7 +867,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(
+        response = await authFetch(
           editingTrendingProductId
             ? FRONTEND_API.admin.homepage.trendingProducts.update(editingTrendingProductId)
             : FRONTEND_API.admin.homepage.trendingProducts.create,
@@ -784,7 +921,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(
+        response = await authFetch(
           editingNewArrivalRuleId
             ? FRONTEND_API.admin.homepage.newArrivals.update(editingNewArrivalRuleId)
             : FRONTEND_API.admin.homepage.newArrivals.create,
@@ -869,7 +1006,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(`/api/v1/admin/products/${product.id}/product`, {
+        response = await authFetch(`/api/v1/admin/products/${product.id}/product`, {
           method: 'DELETE',
         });
       } catch (error) {
@@ -895,7 +1032,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch('/api/v1/admin/products/status/update-product', {
+        response = await authFetch('/api/v1/admin/products/status/update-product', {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -1092,7 +1229,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(`/api/v1/admin/categories/${category.id}/category`, {
+        response = await authFetch(`/api/v1/admin/categories/${category.id}/category`, {
           method: 'DELETE',
         });
       } catch (error) {
@@ -1127,6 +1264,107 @@ function App() {
     }
   }
 
+  async function handleOrderAdminAction(order, endpoint, payload, successMessage) {
+    try {
+      let response;
+
+      try {
+        response = await authFetch(endpoint, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        throw new Error(normalizeRequestError(error, successMessage));
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : await response.text();
+
+      if (!response.ok) {
+        const message = typeof data === 'string' ? data : data.message || successMessage;
+        throw new Error(normalizeRequestError(message, successMessage));
+      }
+
+      setLastResponse(data);
+      setDetailModal(null);
+      await loadOrders();
+      setToast({ type: 'success', message: typeof data === 'string' ? data : data.message || successMessage });
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, successMessage) });
+    }
+  }
+
+  async function handleViewOrder(order) {
+    try {
+      const data = await fetchJson(FRONTEND_API.admin.orders.byId(order.id), 'Failed to load order details.');
+      const resolvedOrder = mapBackendOrderAdmin(data);
+
+      openEntityDetails(resolvedOrder.orderCode, 'Order Details', [
+        { label: 'Order Id', value: resolvedOrder.id },
+        { label: 'Customer', value: resolvedOrder.customerName || resolvedOrder.customerPhone || resolvedOrder.customerEmail || resolvedOrder.sessionId || 'Not provided' },
+        { label: 'Email', value: resolvedOrder.customerEmail || 'Not provided' },
+        { label: 'Phone', value: resolvedOrder.customerPhone || 'Not provided' },
+        { label: 'Session', value: resolvedOrder.sessionId || 'Not provided' },
+        { label: 'Items', value: resolvedOrder.itemCount },
+        { label: 'Total', value: `${resolvedOrder.currencyCode} ${resolvedOrder.grandTotalAmount.toFixed(2)}` },
+        { label: 'Order Status', value: resolvedOrder.status },
+        { label: 'Payment Provider', value: resolvedOrder.paymentProvider || 'Not submitted' },
+        { label: 'Payment Status', value: resolvedOrder.paymentVerificationStatus || 'Not submitted' },
+        { label: 'Transaction Ref', value: resolvedOrder.transactionReference || 'Not submitted' },
+        { label: 'Payer Mobile', value: resolvedOrder.payerMobile || 'Not submitted' },
+      ], [
+        {
+          label: 'Verify',
+          onClick: () => handleOrderAdminAction(
+            resolvedOrder,
+            FRONTEND_API.admin.orders.verify,
+            {
+              orderId: resolvedOrder.id,
+              orderStatus: 'PAYMENT_VERIFIED',
+              paymentStatus: 'VERIFIED',
+              paymentMethod: resolvedOrder.paymentProvider || 'ESEWA',
+            },
+            'Failed to verify order.',
+          ),
+        },
+        {
+          label: 'Process',
+          onClick: () => handleOrderAdminAction(
+            resolvedOrder,
+            FRONTEND_API.admin.orders.process,
+            {
+              orderId: resolvedOrder.id,
+              orderStatus: 'PROCESSING',
+              paymentStatus: 'VERIFIED',
+              paymentMethod: resolvedOrder.paymentProvider || 'ESEWA',
+            },
+            'Failed to process order.',
+          ),
+        },
+        {
+          label: 'Cancel',
+          tone: 'danger',
+          onClick: () => handleOrderAdminAction(
+            resolvedOrder,
+            FRONTEND_API.admin.orders.cancel,
+            {
+              orderId: resolvedOrder.id,
+              orderStatus: 'CANCELLED',
+              paymentStatus: 'REJECTED',
+              paymentMethod: resolvedOrder.paymentProvider || 'ESEWA',
+            },
+            'Failed to cancel order.',
+          ),
+        },
+      ]);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load order details.') });
+    }
+  }
+
   async function handleEditTag(tag) {
     try {
       const data = await fetchJson(`/api/v1/admin/tags/${tag.id}/tag`, 'Failed to load tag details.');
@@ -1156,7 +1394,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(`/api/v1/admin/tags/${tag.id}/tag`, {
+        response = await authFetch(`/api/v1/admin/tags/${tag.id}/tag`, {
           method: 'DELETE',
         });
       } catch (error) {
@@ -1207,7 +1445,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(`/api/v1/admin/homepage/hero/${hero.id}/hero`, {
+        response = await authFetch(`/api/v1/admin/homepage/hero/${hero.id}/hero`, {
           method: 'DELETE',
         });
       } catch (error) {
@@ -1252,7 +1490,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(`/api/v1/admin/homepage/featured-categories/${featuredCategory.id}`, {
+        response = await authFetch(`/api/v1/admin/homepage/featured-categories/${featuredCategory.id}`, {
           method: 'DELETE',
         });
       } catch (error) {
@@ -1298,7 +1536,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(`/api/v1/admin/homepage/trending-products/${trendingProduct.id}`, {
+        response = await authFetch(`/api/v1/admin/homepage/trending-products/${trendingProduct.id}`, {
           method: 'DELETE',
         });
       } catch (error) {
@@ -1343,7 +1581,7 @@ function App() {
       let response;
 
       try {
-        response = await fetch(`/api/v1/admin/homepage/new-arrivals/${rule.id}`, {
+        response = await authFetch(`/api/v1/admin/homepage/new-arrivals/${rule.id}`, {
           method: 'DELETE',
         });
       } catch (error) {
@@ -1360,6 +1598,19 @@ function App() {
     } catch (error) {
       setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to delete new arrivals rule.') });
     }
+  }
+
+  if (!hasAdminAccess) {
+    return (
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <AdminAccessGate
+          isAuthenticated={isAuthenticated}
+          onGoLogin={() => { window.location.href = '/'; }}
+          onGoStorefront={() => { window.location.href = '/'; }}
+        />
+      </>
+    );
   }
 
   return (
@@ -1580,6 +1831,14 @@ function App() {
             productSummary={productSummary}
             products={filteredProducts}
             tags={tags}
+          />
+        ) : activeView === 'orders' ? (
+          <OrdersView
+            isLoadingOrders={isLoadingOrders}
+            onRefreshOrders={loadOrders}
+            onViewOrder={handleViewOrder}
+            orderSummary={orderSummary}
+            orders={orders}
           />
         ) : activeView === 'categories' ? (
           <CategoriesView

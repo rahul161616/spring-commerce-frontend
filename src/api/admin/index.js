@@ -17,3 +17,5 @@ export {
   mapBackendHomepageNewArrivalRule,
   mapBackendHomepageTrendingProduct,
 } from './homepage';
+
+export { mapBackendOrderAdmin } from './orders';

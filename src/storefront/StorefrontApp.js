@@ -1,6 +1,70 @@
 import { useEffect, useState } from 'react';
-import { fetchPublicProductBySlug, fetchPublicProducts, fetchStorefrontContent } from '../api/public/storefront';
+import {
+  addItemToCart,
+  createPublicOrder,
+  createOrGetCart,
+  fetchPublicOrderByCode,
+  fetchPublicProductBySlug,
+  fetchPublicProducts,
+  fetchStorefrontContent,
+  loginPublicUser,
+  removeCartItem,
+  signUpPublicUser,
+  submitPaymentSubmission,
+  updateCartItemQuantity,
+} from '../api/public/storefront';
+import Toast from '../components/shared/Toast';
+import { getCartSessionId } from '../utils/cartSession';
 import './storefront.css';
+
+const ACTIVE_ORDER_STORAGE_KEY = 'active_order_checkout';
+const AUTH_STORAGE_KEY = 'storefront_auth_session';
+
+function goTo(path) {
+  window.location.href = path;
+}
+
+function normalizeRequestError(error, fallbackMessage) {
+  if (!error) {
+    return fallbackMessage;
+  }
+
+  if (typeof error === 'string') {
+    return error || fallbackMessage;
+  }
+
+  if (error instanceof Error) {
+    return error.message || fallbackMessage;
+  }
+
+  return fallbackMessage;
+}
+
+function getStoredAuthSession() {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return null;
+  }
+
+  try {
+    const rawSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!rawSession) {
+      return null;
+    }
+
+    return JSON.parse(rawSession);
+  } catch (error) {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    return null;
+  }
+}
+
+function getAuthNoticeFromReason(reason) {
+  if (reason === 'login-required') {
+    return 'Login first to access the storefront.';
+  }
+
+  return '';
+}
 
 function StorefrontSidebar({ isOpen, onClose }) {
   return (
@@ -34,9 +98,257 @@ function BurgerButton({ onClick }) {
   );
 }
 
-function StorefrontCartBox() {
+function SignUpPage({
+  brandName,
+  form,
+  isSubmitting,
+  isPasswordVisible,
+  isSidebarOpen,
+  onChange,
+  onCloseSidebar,
+  onOpenSidebar,
+  onSubmit,
+  onTogglePasswordVisibility,
+  onToast,
+}) {
   return (
-    <button type="button" className="storefront-cart-box" aria-label="Cart preview">
+    <div className="storefront-shell storefront-auth-shell">
+      <StorefrontSidebar isOpen={isSidebarOpen} onClose={onCloseSidebar} />
+      <header className="storefront-auth-topbar">
+        <button type="button" className="storefront-icon-button" onClick={() => goTo('/')} aria-label="Close sign up">
+          Close
+        </button>
+        <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
+        <button type="button" className="storefront-auth-help" onClick={() => onToast({ type: 'info', message: 'Help center will be connected with auth support.' })}>
+          Help
+        </button>
+      </header>
+
+      <main className="storefront-auth-main">
+        <div className="storefront-auth-grid">
+          <section className="storefront-auth-visual">
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtQtcAPY7bddarFR9wYIeklNsixeEPYGA6DxY6dN-aQ-TKCjVn91FsIyBc8Flp72iCxXrwGuZ4y9jVD7XQm4PhNRFlYRjEF7_TL9gYCuxBeFsQ7Rczv5qiA89_AcZZM9r61TUHEKUfe_Vem0HJ1arYLvrCib1R66RqeA6pUZJXUdKwbAKawDR7Sp4h3xzysHemvzvzaYJPzY_rPPHSmy-1Exe4GVe9MZ_mxuGq1MPK6Eh4_ij4C0NORMXjy2JGg47pISUA1kIgAbyR"
+              alt="Luxury retail interior"
+            />
+            <div className="storefront-auth-visual-overlay">
+              <h1>Define Your Aesthetic.</h1>
+              <p>
+                Join our exclusive community of curators and tastemakers. Experience fashion through a new lens of digital craftsmanship.
+              </p>
+            </div>
+          </section>
+
+          <section className="storefront-auth-panel">
+            <div className="storefront-auth-copy">
+              <span className="storefront-auth-kicker">The Digital Atelier</span>
+              <h2>Create Account</h2>
+              <p>Enter your details to begin your journey.</p>
+            </div>
+
+            <form className="storefront-auth-form" onSubmit={onSubmit}>
+              <label className="storefront-auth-field">
+                <span>Full Name</span>
+                <input
+                  name="fullName"
+                  type="text"
+                  placeholder="Alexander McQueen"
+                  value={form.fullName}
+                  onChange={onChange}
+                />
+              </label>
+
+              <label className="storefront-auth-field">
+                <span>Email Address</span>
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="alexander@atelier.com"
+                  value={form.email}
+                  onChange={onChange}
+                />
+              </label>
+
+              <label className="storefront-auth-field">
+                <span>Password</span>
+                <div className="storefront-auth-password-wrap">
+                  <input
+                    name="password"
+                    type={isPasswordVisible ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={onChange}
+                  />
+                  <button type="button" className="storefront-auth-password-toggle" onClick={onTogglePasswordVisibility}>
+                    {isPasswordVisible ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </label>
+
+              <button type="submit" className="storefront-auth-submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Creating Account...' : 'Sign Up'}
+              </button>
+            </form>
+
+            <div className="storefront-auth-divider">
+              <span />
+              <strong>Or continue with</strong>
+              <span />
+            </div>
+
+            <div className="storefront-auth-socials">
+              <button type="button" className="storefront-auth-social" onClick={() => onToast({ type: 'info', message: 'Google sign up will be added with the auth backend.' })}>
+                Google
+              </button>
+              <button type="button" className="storefront-auth-social" onClick={() => onToast({ type: 'info', message: 'Apple sign up will be added with the auth backend.' })}>
+                Apple
+              </button>
+            </div>
+
+            <p className="storefront-auth-footer">
+              Already have an account?
+              <button type="button" onClick={() => goTo('/login')}>
+                Login
+              </button>
+            </p>
+          </section>
+        </div>
+      </main>
+
+      <footer className="storefront-auth-footer-bar">
+        <p>© 2024 SHADES Global Services. All rights reserved.</p>
+      </footer>
+
+      <button type="button" className="storefront-auth-mobile-menu" onClick={onOpenSidebar} aria-label="Open menu">
+        Menu
+      </button>
+    </div>
+  );
+}
+
+function LoginPage({
+  brandName,
+  form,
+  isSubmitting,
+  isPasswordVisible,
+  isSidebarOpen,
+  onChange,
+  onCloseSidebar,
+  onOpenSidebar,
+  onSubmit,
+  onTogglePasswordVisibility,
+  onToast,
+}) {
+  return (
+    <div className="storefront-shell storefront-auth-shell">
+      <StorefrontSidebar isOpen={isSidebarOpen} onClose={onCloseSidebar} />
+      <header className="storefront-auth-topbar">
+        <button type="button" className="storefront-icon-button" onClick={() => goTo('/')} aria-label="Close login">
+          Close
+        </button>
+        <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
+        <button type="button" className="storefront-auth-help" onClick={() => onToast({ type: 'info', message: 'Help center will be connected with auth support.' })}>
+          Help
+        </button>
+      </header>
+
+      <main className="storefront-auth-main">
+        <div className="storefront-auth-grid">
+          <section className="storefront-auth-visual">
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtQtcAPY7bddarFR9wYIeklNsixeEPYGA6DxY6dN-aQ-TKCjVn91FsIyBc8Flp72iCxXrwGuZ4y9jVD7XQm4PhNRFlYRjEF7_TL9gYCuxBeFsQ7Rczv5qiA89_AcZZM9r61TUHEKUfe_Vem0HJ1arYLvrCib1R66RqeA6pUZJXUdKwbAKawDR7Sp4h3xzysHemvzvzaYJPzY_rPPHSmy-1Exe4GVe9MZ_mxuGq1MPK6Eh4_ij4C0NORMXjy2JGg47pISUA1kIgAbyR"
+              alt="Luxury retail interior"
+            />
+            <div className="storefront-auth-visual-overlay">
+              <h1>Return To The Circle.</h1>
+              <p>
+                Sign in to continue your journey, manage your orders, and move through checkout with a saved account.
+              </p>
+            </div>
+          </section>
+
+          <section className="storefront-auth-panel">
+            <div className="storefront-auth-copy">
+              <span className="storefront-auth-kicker">Member Access</span>
+              <h2>Login</h2>
+              <p>Use your email and password to access your account.</p>
+            </div>
+
+            <form className="storefront-auth-form" onSubmit={onSubmit}>
+              <label className="storefront-auth-field">
+                <span>Email Address</span>
+                <input
+                  name="email"
+                  type="email"
+                  placeholder="alexander@atelier.com"
+                  value={form.email}
+                  onChange={onChange}
+                />
+              </label>
+
+              <label className="storefront-auth-field">
+                <span>Password</span>
+                <div className="storefront-auth-password-wrap">
+                  <input
+                    name="password"
+                    type={isPasswordVisible ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={form.password}
+                    onChange={onChange}
+                  />
+                  <button type="button" className="storefront-auth-password-toggle" onClick={onTogglePasswordVisibility}>
+                    {isPasswordVisible ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </label>
+
+              <button type="submit" className="storefront-auth-submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Signing In...' : 'Login'}
+              </button>
+            </form>
+
+            <div className="storefront-auth-divider">
+              <span />
+              <strong>Or continue with</strong>
+              <span />
+            </div>
+
+            <div className="storefront-auth-socials">
+              <button type="button" className="storefront-auth-social" onClick={() => onToast({ type: 'info', message: 'Google sign in will be added with the auth backend.' })}>
+                Google
+              </button>
+              <button type="button" className="storefront-auth-social" onClick={() => onToast({ type: 'info', message: 'Apple sign in will be added with the auth backend.' })}>
+                Apple
+              </button>
+            </div>
+
+            <p className="storefront-auth-footer">
+              Need an account?
+              <button type="button" onClick={() => goTo('/signup')}>
+                Sign Up
+              </button>
+            </p>
+          </section>
+        </div>
+      </main>
+
+      <footer className="storefront-auth-footer-bar">
+        <p>© 2024 SHADES Global Services. All rights reserved.</p>
+      </footer>
+
+      <button type="button" className="storefront-auth-mobile-menu" onClick={onOpenSidebar} aria-label="Open menu">
+        Menu
+      </button>
+    </div>
+  );
+}
+
+function StorefrontCartBox({ cart }) {
+  const itemCount = cart?.itemCount || 0;
+  const summaryLabel = itemCount === 1 ? '1 Item' : `${itemCount} Items`;
+
+  return (
+    <button type="button" className="storefront-cart-box" aria-label="Cart preview" onClick={() => goTo('/cart')}>
       <div className="storefront-cart-case" aria-hidden="true">
         <div className="storefront-cart-case-lid" />
         <div className="storefront-cart-case-body">
@@ -49,13 +361,36 @@ function StorefrontCartBox() {
       </div>
       <div className="storefront-cart-copy">
         <span>Cart</span>
-        <strong>1 Item</strong>
+        <strong>{summaryLabel}</strong>
       </div>
     </button>
   );
 }
 
-function ProductDetailPage({ brandName, product, isLoading, isSidebarOpen, onOpenSidebar, onCloseSidebar }) {
+function resolveCartItemImage(item, products) {
+  return products.find((product) => product.id === item.productId)?.image || products[0]?.image || '';
+}
+
+function isProductAlreadyInCart(cart, productId) {
+  if (!productId) {
+    return false;
+  }
+
+  return Boolean(cart?.items?.some((item) => item.productId === productId));
+}
+
+function ProductDetailPage({
+  brandName,
+  cart,
+  product,
+  isLoading,
+  isAddingToCart,
+  isInCart,
+  isSidebarOpen,
+  onAddToCart,
+  onOpenSidebar,
+  onCloseSidebar,
+}) {
   const gallery = product?.image ? [product.image, product.image, product.image] : [];
 
   return (
@@ -64,12 +399,12 @@ function ProductDetailPage({ brandName, product, isLoading, isSidebarOpen, onOpe
       <header className="storefront-topbar">
         <div className="storefront-topbar-inner">
           <BurgerButton onClick={onOpenSidebar} />
-          <div className="storefront-wordmark">{brandName}</div>
+          <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
           <div className="storefront-topbar-actions">
             <button type="button" className="storefront-icon-button" aria-label="Search">
               Search
             </button>
-            <StorefrontCartBox />
+            <StorefrontCartBox cart={cart} />
           </div>
         </div>
         <div className="storefront-detail-back-row">
@@ -141,7 +476,14 @@ function ProductDetailPage({ brandName, product, isLoading, isSidebarOpen, onOpe
                 </div>
 
                 <div className="storefront-detail-actions">
-                  <button type="button" className="storefront-detail-primary">Add to Bag</button>
+                  <button
+                    type="button"
+                    className="storefront-detail-primary"
+                    onClick={() => onAddToCart(product)}
+                    disabled={isAddingToCart || isInCart}
+                  >
+                    {isInCart ? 'Already in Bag' : isAddingToCart ? 'Adding...' : 'Add to Bag'}
+                  </button>
                   <button type="button" className="storefront-detail-secondary">Find in Boutique</button>
                 </div>
               </div>
@@ -175,31 +517,31 @@ function ProductDetailPage({ brandName, product, isLoading, isSidebarOpen, onOpe
       </main>
 
       <nav className="storefront-mobile-nav">
-        <button type="button" onClick={() => { window.location.href = '/'; }}>Home</button>
+        <button type="button" onClick={() => { goTo('/'); }}>Home</button>
         <button type="button" className="is-active">Shop</button>
         <button type="button">Wishlist</button>
-        <button type="button">Cart</button>
+        <button type="button" onClick={() => { goTo('/cart'); }}>Cart</button>
         <button type="button">History</button>
       </nav>
     </div>
   );
 }
 
-function ProductsPage({ brandName, products, isLoading, isSidebarOpen, onOpenSidebar, onCloseSidebar }) {
+function ProductsPage({ brandName, cart, products, isLoading, isSidebarOpen, onOpenSidebar, onCloseSidebar }) {
   return (
     <div className="storefront-shell">
       <StorefrontSidebar isOpen={isSidebarOpen} onClose={onCloseSidebar} />
       <header className="storefront-topbar">
         <div className="storefront-topbar-inner">
           <BurgerButton onClick={onOpenSidebar} />
-          <div className="storefront-wordmark">{brandName}</div>
+          <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
           <div className="storefront-topbar-actions">
             <nav className="storefront-nav">
               <a href="/">Home</a>
               <a href="/products">Shop</a>
               <a href="#about">About</a>
             </nav>
-            <StorefrontCartBox />
+            <StorefrontCartBox cart={cart} />
           </div>
         </div>
       </header>
@@ -208,7 +550,6 @@ function ProductsPage({ brandName, products, isLoading, isSidebarOpen, onOpenSid
         <section className="storefront-products-hero storefront-products-hero-centered">
           <p className="storefront-products-kicker">Shop</p>
           <h1>All Products</h1>
-          <p>Browse the full catalog in the same visual language as the homepage. This page is ready for your public product flow.</p>
         </section>
 
         <section className="storefront-products-toolbar">
@@ -254,11 +595,489 @@ function ProductsPage({ brandName, products, isLoading, isSidebarOpen, onOpenSid
       </main>
 
       <nav className="storefront-mobile-nav">
-        <button type="button" onClick={() => { window.location.href = '/'; }}>Home</button>
+        <button type="button" onClick={() => { goTo('/'); }}>Home</button>
         <button type="button" className="is-active">Shop</button>
         <button type="button">Wishlist</button>
-        <button type="button">Cart</button>
+        <button type="button" onClick={() => { goTo('/cart'); }}>Cart</button>
         <button type="button">History</button>
+      </nav>
+    </div>
+  );
+}
+
+function CartPage({
+  brandName,
+  cart,
+  products,
+  isCartUpdating,
+  isOrderCreating,
+  isSidebarOpen,
+  onCartQuantityChange,
+  onCheckout,
+  onOpenSidebar,
+  onCloseSidebar,
+}) {
+  const cartItems = cart?.items || [];
+  const suggestions = products.filter((product) => !cartItems.some((item) => item.productId === product.id)).slice(0, 4);
+
+  return (
+    <div className="storefront-shell">
+      <StorefrontSidebar isOpen={isSidebarOpen} onClose={onCloseSidebar} />
+      <header className="storefront-topbar">
+        <div className="storefront-topbar-inner">
+          <BurgerButton onClick={onOpenSidebar} />
+          <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
+          <div className="storefront-topbar-actions">
+            <button type="button" className="storefront-bag-button" aria-label="Shopping bag">
+              <span className="storefront-bag-icon" aria-hidden="true" />
+              <span className="storefront-bag-badge">{cart?.itemCount || 0}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="storefront-main storefront-cart-page">
+        <section className="storefront-cart-hero">
+          <span className="storefront-cart-kicker">Your Selection</span>
+          <h1>Shopping Bag</h1>
+          <p>A curated collection of your future essentials. Review your pieces before checkout.</p>
+        </section>
+
+        <section className="storefront-cart-list">
+          {cartItems.length ? (
+            cartItems.map((item) => (
+              <article key={item.id || item.productId} className="storefront-cart-item">
+                <div className="storefront-cart-item-image-wrap">
+                  <img className="storefront-cart-item-image" src={resolveCartItemImage(item, products)} alt={item.productName} />
+                </div>
+                <div className="storefront-cart-item-copy">
+                  <div className="storefront-cart-item-head">
+                    <div>
+                      <h3>{item.productName}</h3>
+                      <p>{products.find((product) => product.id === item.productId)?.categoryName || 'Curated Piece'}</p>
+                    </div>
+                    <strong>{item.priceLabel}</strong>
+                  </div>
+                  <div className="storefront-cart-item-actions">
+                    <div className="storefront-cart-quantity-pill">
+                      <button
+                        type="button"
+                        aria-label="Decrease quantity"
+                        onClick={() => onCartQuantityChange(item, item.quantity - 1)}
+                        disabled={isCartUpdating}
+                      >
+                        -
+                      </button>
+                      <span>{item.quantity}</span>
+                      <button
+                        type="button"
+                        aria-label="Increase quantity"
+                        onClick={() => onCartQuantityChange(item, item.quantity + 1)}
+                        disabled={isCartUpdating}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <button type="button" className="storefront-cart-remove" onClick={() => onCartQuantityChange(item, 0)} disabled={isCartUpdating}>
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))
+          ) : (
+            <article className="storefront-cart-empty">
+              <h2>Your bag is still empty</h2>
+              <p>Add a few pieces from the shop and they will appear here.</p>
+              <button type="button" className="storefront-detail-primary" onClick={() => goTo('/products')}>
+                Continue Shopping
+              </button>
+            </article>
+          )}
+        </section>
+
+        {suggestions.length ? (
+          <section className="storefront-cart-suggestions">
+            <h2>You might also like</h2>
+            <div className="storefront-cart-suggestions-grid">
+              {suggestions.map((product) => (
+                <a key={product.id} href={product.href} className="storefront-cart-suggestion-card">
+                  <div className="storefront-cart-suggestion-image-wrap">
+                    <img className="storefront-cart-suggestion-image" src={product.image} alt={product.name} />
+                  </div>
+                  <p>{product.name}</p>
+                  <span>{product.price}</span>
+                </a>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </main>
+
+      {cartItems.length ? <div className="storefront-cart-summary-shell">
+        <div className="storefront-cart-summary">
+          <div className="storefront-cart-summary-head">
+            <div>
+              <span>Estimated Total</span>
+              <strong>{cart?.grandTotalLabel || '$0.00'}</strong>
+            </div>
+            <div className="storefront-cart-summary-note">
+              <p>Taxes and Shipping</p>
+              <small>Calculated at next step</small>
+            </div>
+          </div>
+          <button type="button" className="storefront-cart-checkout" onClick={onCheckout} disabled={isOrderCreating}>
+            {isOrderCreating ? 'Preparing Order...' : 'Proceed to Checkout'}
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </div> : null}
+
+      <nav className="storefront-mobile-nav">
+        <button type="button" onClick={() => { goTo('/products'); }}>Shop</button>
+        <button type="button" className="is-active">Cart</button>
+        <button type="button">Pay</button>
+        <button type="button">Member</button>
+        <button type="button">More</button>
+      </nav>
+    </div>
+  );
+}
+
+function getOrderStatusMeta(status) {
+  switch (status) {
+    case 'PAYMENT_SUBMITTED':
+      return {
+        label: 'Pending Approval',
+        note: 'Payment proof submitted successfully. Our team is reviewing the transaction now.',
+      };
+    case 'PAYMENT_VERIFIED':
+      return {
+        label: 'Payment Verified',
+        note: 'Your payment has been verified and the order is moving into processing.',
+      };
+    case 'PAYMENT_REJECTED':
+      return {
+        label: 'Payment Rejected',
+        note: 'The submitted payment could not be verified. Please resubmit or contact support.',
+      };
+    default:
+      return {
+        label: 'Pending Payment',
+        note: 'Complete the payment steps to move this order forward.',
+      };
+  }
+}
+
+function PaymentPage({ brandName, order, cart, isSidebarOpen, onOpenSidebar, onCloseSidebar, onOrderUpdate, onToast }) {
+  const [transactionReference, setTransactionReference] = useState('');
+  const [payerMobile, setPayerMobile] = useState('');
+  const [receiptImageUrl, setReceiptImageUrl] = useState('');
+  const [paymentState, setPaymentState] = useState({ isSubmitting: false, submission: null, error: '' });
+  return (
+    <div className="storefront-shell">
+      <StorefrontSidebar isOpen={isSidebarOpen} onClose={onCloseSidebar} />
+      <header className="storefront-topbar">
+        <div className="storefront-topbar-inner">
+          <BurgerButton onClick={onOpenSidebar} />
+          <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
+          <div className="storefront-topbar-actions">
+            <button type="button" className="storefront-bag-button" aria-label="Shopping bag" onClick={() => goTo('/cart')}>
+              <span className="storefront-bag-icon" aria-hidden="true" />
+              <span className="storefront-bag-badge">{order?.itemCount || cart?.itemCount || 0}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="storefront-main storefront-pay-page">
+        <section className="storefront-pay-summary">
+          <span className="storefront-pay-kicker">Checkout Summary</span>
+          <h2>{order?.grandTotalLabel || '$0.00'}</h2>
+          <p>Order #{order?.orderCode || 'AT-00000'}</p>
+        </section>
+
+        <section className="storefront-pay-qr-card">
+          <div className="storefront-pay-qr-frame">
+            <div className="storefront-pay-qr-grid" aria-hidden="true">
+              {Array.from({ length: 25 }).map((_, index) => (
+                <span key={`qr-${index}`} className={index % 3 === 0 || index % 7 === 0 ? 'is-filled' : ''} />
+              ))}
+            </div>
+          </div>
+          <p>
+            Scan this code with your banking app to initiate the secure transfer to
+            <strong> SHADES Collective Ltd.</strong>
+          </p>
+        </section>
+
+        <section className="storefront-pay-verification">
+          <div className="storefront-pay-divider">
+            <span />
+            <strong>Verification</strong>
+            <span />
+          </div>
+
+          <div className="storefront-pay-field">
+            <label htmlFor="transaction-id">Transaction ID</label>
+            <input
+              id="transaction-id"
+              type="text"
+              placeholder="Enter the 12-digit reference number"
+              value={transactionReference}
+              onChange={(event) => {
+                setTransactionReference(event.target.value);
+                setPaymentState((current) => ({ ...current, error: '' }));
+              }}
+            />
+          </div>
+
+          <div className="storefront-pay-field">
+            <label htmlFor="payer-mobile">Payer Mobile</label>
+            <input
+              id="payer-mobile"
+              type="text"
+              placeholder="98XXXXXXXX"
+              value={payerMobile}
+              onChange={(event) => {
+                setPayerMobile(event.target.value);
+                setPaymentState((current) => ({ ...current, error: '' }));
+              }}
+            />
+          </div>
+
+          <div className="storefront-pay-field">
+            <label htmlFor="receipt-url">Receipt URL</label>
+            <input
+              id="receipt-url"
+              type="text"
+              placeholder="Paste uploaded receipt URL"
+              value={receiptImageUrl}
+              onChange={(event) => {
+                setReceiptImageUrl(event.target.value);
+                setPaymentState((current) => ({ ...current, error: '' }));
+              }}
+            />
+          </div>
+
+          <div className="storefront-pay-field">
+            <label>Proof of Transfer</label>
+            <button type="button" className="storefront-pay-upload">
+              <span aria-hidden="true">↑</span>
+              <small>Submit Screenshot</small>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="storefront-pay-complete"
+            disabled={paymentState.isSubmitting}
+            onClick={async () => {
+              if (paymentState.isSubmitting) {
+                return;
+              }
+
+              if (!order?.orderCode) {
+                const message = 'Create an order from the cart before submitting payment verification.';
+                setPaymentState((current) => ({
+                  ...current,
+                  error: message,
+                }));
+                if (onToast) {
+                  onToast({ type: 'error', message });
+                }
+                return;
+              }
+
+              if (!transactionReference.trim()) {
+                const message = 'Transaction ID is required before submitting verification.';
+                setPaymentState((current) => ({
+                  ...current,
+                  error: message,
+                }));
+                if (onToast) {
+                  onToast({ type: 'error', message });
+                }
+                return;
+              }
+
+              try {
+                setPaymentState((current) => ({ ...current, isSubmitting: true, error: '' }));
+                const submission = await submitPaymentSubmission(order.orderCode, {
+                  provider: 'ESEWA',
+                  paidAmount: order.grandTotalAmount,
+                  payerMobile: payerMobile.trim(),
+                  transactionReference: transactionReference.trim(),
+                  receiptImageUrl: receiptImageUrl.trim(),
+                  remarks: 'Submitted from public pay page',
+                });
+                setPaymentState({ isSubmitting: false, submission, error: '' });
+                if (onOrderUpdate) {
+                  onOrderUpdate({
+                    ...order,
+                    status: 'PAYMENT_SUBMITTED',
+                  });
+                }
+                window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+                if (onToast) {
+                  onToast({ type: 'success', message: 'Payment verification submitted successfully.' });
+                }
+                goTo(`/orders/${order.orderCode}`);
+              } catch (error) {
+                const message = normalizeRequestError(error, 'Payment submission failed.');
+                setPaymentState((current) => ({
+                  ...current,
+                  isSubmitting: false,
+                  error: message,
+                }));
+                if (onToast) {
+                  onToast({ type: 'error', message });
+                }
+              }
+            }}
+          >
+            {paymentState.isSubmitting ? 'Submitting...' : 'Complete Verification'}
+            <span aria-hidden="true">→</span>
+          </button>
+
+          <div className="storefront-pay-note">
+            <i aria-hidden="true">i</i>
+            <div>
+              <strong>{paymentState.submission?.verificationStatus || 'Pending Approval'}</strong>
+              <p>
+                {paymentState.submission
+                  ? 'Payment proof submitted. Our team will verify the transaction and update your order status.'
+                  : 'Once submitted, our team will verify your transaction within 2-4 business hours. You\'ll receive a confirmation email once the order status is updated.'}
+              </p>
+            </div>
+          </div>
+
+          {paymentState.error ? (
+            <p className="storefront-pay-error" role="alert">{paymentState.error}</p>
+          ) : null}
+        </section>
+      </main>
+
+      <nav className="storefront-mobile-nav">
+        <button type="button" onClick={() => { goTo('/products'); }}>Shop</button>
+        <button type="button" onClick={() => { goTo('/cart'); }}>Cart</button>
+        <button type="button" className="is-active">Pay</button>
+        <button type="button">Member</button>
+        <button type="button">More</button>
+      </nav>
+    </div>
+  );
+}
+
+function OrdersPage({
+  brandName,
+  cart,
+  order,
+  isLoading,
+  isSidebarOpen,
+  onOpenSidebar,
+  onCloseSidebar,
+}) {
+  const statusMeta = getOrderStatusMeta(order?.status);
+
+  return (
+    <div className="storefront-shell">
+      <StorefrontSidebar isOpen={isSidebarOpen} onClose={onCloseSidebar} />
+      <header className="storefront-topbar">
+        <div className="storefront-topbar-inner">
+          <BurgerButton onClick={onOpenSidebar} />
+          <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
+          <div className="storefront-topbar-actions">
+            <button type="button" className="storefront-bag-button" aria-label="Shopping bag" onClick={() => goTo('/cart')}>
+              <span className="storefront-bag-icon" aria-hidden="true" />
+              <span className="storefront-bag-badge">{cart?.itemCount || 0}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="storefront-main storefront-orders-page">
+        <section className="storefront-orders-hero">
+          <h1>Order Status</h1>
+          <p>Track the current state of your order and payment review.</p>
+        </section>
+
+        {isLoading ? (
+          <section className="storefront-orders-card">
+            <span className="skeleton-line short" />
+            <span className="skeleton-line medium" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line medium" />
+          </section>
+        ) : order ? (
+          <section className="storefront-orders-card">
+            <div className="storefront-orders-card-head">
+              <div>
+                <span className="storefront-orders-code">Order #{order.orderCode}</span>
+                <h2>{statusMeta.label}</h2>
+              </div>
+              <div className="storefront-orders-side">
+                <span className="storefront-orders-pill">{statusMeta.label}</span>
+                <strong>{order.grandTotalLabel}</strong>
+              </div>
+            </div>
+
+            <div className="storefront-orders-progress">
+              <div className={`storefront-orders-step is-complete`}>
+                <div className="storefront-orders-step-dot">1</div>
+                <span>Ordered</span>
+              </div>
+              <div className={`storefront-orders-step${order.status !== 'PENDING_PAYMENT' ? ' is-complete' : ''}`}>
+                <div className="storefront-orders-step-dot">2</div>
+                <span>Payment Submitted</span>
+              </div>
+              <div className={`storefront-orders-step${order.status === 'PAYMENT_VERIFIED' ? ' is-complete' : ''}`}>
+                <div className="storefront-orders-step-dot">3</div>
+                <span>Verification</span>
+              </div>
+            </div>
+
+            <div className="storefront-orders-grid">
+              <article>
+                <span>Status</span>
+                <strong>{order.status || 'PENDING_PAYMENT'}</strong>
+              </article>
+              <article>
+                <span>Items</span>
+                <strong>{order.itemCount || 0}</strong>
+              </article>
+              <article>
+                <span>Currency</span>
+                <strong>{order.currencyCode || 'NRS'}</strong>
+              </article>
+              <article>
+                <span>Amount</span>
+                <strong>{order.grandTotalLabel}</strong>
+              </article>
+            </div>
+
+            <div className="storefront-orders-note">
+              <i aria-hidden="true">i</i>
+              <p>{statusMeta.note}</p>
+            </div>
+          </section>
+        ) : (
+          <section className="storefront-orders-empty">
+            <h2>Order not found</h2>
+            <p>The requested order is not available in the current public session.</p>
+            <button type="button" className="storefront-detail-primary" onClick={() => goTo('/products')}>
+              Continue Shopping
+            </button>
+          </section>
+        )}
+      </main>
+
+      <nav className="storefront-mobile-nav">
+        <button type="button" onClick={() => { goTo('/products'); }}>Shop</button>
+        <button type="button" className="is-active">Orders</button>
+        <button type="button" onClick={() => { goTo('/pay'); }}>Pay</button>
+        <button type="button">Member</button>
+        <button type="button">More</button>
       </nav>
     </div>
   );
@@ -279,25 +1098,101 @@ function StorefrontApp() {
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isProductDetailLoading, setIsProductDetailLoading] = useState(false);
+  const [cart, setCart] = useState(null);
+  const [activeOrder, setActiveOrder] = useState(null);
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [isOrderDetailsLoading, setIsOrderDetailsLoading] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isCartUpdating, setIsCartUpdating] = useState(false);
+  const [isOrderCreating, setIsOrderCreating] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [signUpForm, setSignUpForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+  });
+  const [loginForm, setLoginForm] = useState({
+    email: '',
+    password: '',
+  });
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [authSession, setAuthSession] = useState(() => getStoredAuthSession());
   const pathname = window.location.pathname;
+  const searchParams = new URLSearchParams(window.location.search);
+  const authReason = searchParams.get('reason') || '';
+  const isCartPage = pathname === '/cart';
+  const isPayPage = pathname === '/pay';
+  const isSignupPage = pathname === '/signup';
+  const isLoginPage = pathname === '/login';
+  const orderCode = pathname.startsWith('/orders/') ? pathname.replace('/orders/', '') : null;
+  const isOrdersPage = Boolean(orderCode);
   const productSlug = pathname.startsWith('/products/') ? pathname.replace('/products/', '') : null;
+  const isAuthenticated = Boolean(authSession?.accessToken || authSession?.token);
+  const isProtectedRoute = !isLoginPage && !isSignupPage;
+
+  useEffect(() => {
+    if (!toast) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast(null);
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [toast]);
+
+  useEffect(() => {
+    if (!isProtectedRoute) {
+      if (isAuthenticated && !authReason) {
+        goTo('/');
+      }
+      return;
+    }
+
+    if (!isAuthenticated) {
+      goTo('/login?reason=login-required');
+    }
+  }, [authReason, isAuthenticated, isProtectedRoute]);
+
+  useEffect(() => {
+    if (!isLoginPage) {
+      return;
+    }
+
+    const notice = getAuthNoticeFromReason(authReason);
+    if (notice) {
+      setToast({ type: 'error', message: notice });
+      window.history.replaceState({}, '', '/login');
+    }
+  }, [authReason, isLoginPage]);
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadContent() {
+      const sessionId = getCartSessionId();
       setIsLoading(true);
       setIsProductsLoading(true);
 
-      const [nextContent, nextProducts] = await Promise.all([
+      const [nextContent, nextProducts, nextCart] = await Promise.all([
         fetchStorefrontContent(),
         fetchPublicProducts(),
+        createOrGetCart(sessionId),
       ]);
 
       if (isMounted) {
         setContent(nextContent);
         setProducts(nextProducts);
+        setCart(nextCart);
+        const storedOrder = window.localStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
+        if (storedOrder) {
+          setActiveOrder(JSON.parse(storedOrder));
+        }
         setIsLoading(false);
         setIsProductsLoading(false);
       }
@@ -339,6 +1234,50 @@ function StorefrontApp() {
     };
   }, [productSlug, products]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadOrder() {
+      if (!orderCode) {
+        setOrderDetails(null);
+        setIsOrderDetailsLoading(false);
+        return;
+      }
+
+      try {
+        setIsOrderDetailsLoading(true);
+        const nextOrder = await fetchPublicOrderByCode(orderCode);
+        if (isMounted) {
+          setOrderDetails(nextOrder);
+          setIsOrderDetailsLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setOrderDetails(null);
+          setIsOrderDetailsLoading(false);
+          setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load order details.') });
+        }
+      }
+    }
+
+    loadOrder();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orderCode]);
+
+  useEffect(() => {
+    if (!isPayPage || isLoading) {
+      return;
+    }
+
+    if (!activeOrder?.orderCode) {
+      setToast({ type: 'error', message: 'Start checkout from the cart before opening the payment page.' });
+      goTo('/cart');
+    }
+  }, [activeOrder, isLoading, isPayPage]);
+
   const heroSlides = content.heroSlides;
   const categories = content.featuredCategories;
   const trendingItems = content.trendingProducts;
@@ -346,46 +1285,298 @@ function StorefrontApp() {
   const brandName = content.brandName;
   const quote = content.quote;
   const quoteCaption = content.quoteCaption;
-  if (pathname.startsWith('/products')) {
-    if (productSlug) {
-      return (
-        <ProductDetailPage
+
+  async function handleAddToCart(product) {
+    if (!product?.id || isAddingToCart) {
+      return;
+    }
+
+    try {
+      setIsAddingToCart(true);
+      const sessionId = getCartSessionId();
+      const nextCart = await addItemToCart({
+        sessionId,
+        productId: product.id,
+        quantity: 1,
+        currencyCode: 'NRS',
+      });
+      setCart(nextCart);
+    } finally {
+      setIsAddingToCart(false);
+    }
+  }
+
+  async function handleCartQuantityChange(item, nextQuantity) {
+    if (!item?.id || nextQuantity < 0 || isCartUpdating) {
+      return;
+    }
+
+    try {
+      setIsCartUpdating(true);
+      const nextCart = nextQuantity === 0
+        ? await removeCartItem(item.id)
+        : await updateCartItemQuantity(item.id, nextQuantity);
+      setCart(nextCart);
+    } finally {
+      setIsCartUpdating(false);
+    }
+  }
+
+  async function handleCheckout() {
+    if (!cart?.itemCount || isOrderCreating) {
+      return;
+    }
+
+    try {
+      setIsOrderCreating(true);
+      const sessionId = getCartSessionId();
+      const nextOrder = await createPublicOrder({ sessionId });
+      setActiveOrder(nextOrder);
+      window.localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, JSON.stringify(nextOrder));
+      goTo('/pay');
+    } finally {
+      setIsOrderCreating(false);
+    }
+  }
+
+  function handleSignUpChange(event) {
+    const { name, value } = event.target;
+    setSignUpForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleLoginChange(event) {
+    const { name, value } = event.target;
+    setLoginForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  async function handleSignUpSubmit(event) {
+    event.preventDefault();
+
+    if (!signUpForm.fullName.trim() || !signUpForm.email.trim() || !signUpForm.password.trim()) {
+      setToast({ type: 'error', message: 'Fill in full name, email, and password to continue.' });
+      return;
+    }
+
+    try {
+      setIsAuthSubmitting(true);
+      const response = await signUpPublicUser(signUpForm);
+      setToast({ type: 'success', message: response?.message || 'Account created successfully. Login to continue.' });
+      setSignUpForm({
+        fullName: '',
+        email: '',
+        password: '',
+      });
+      window.setTimeout(() => {
+        goTo('/login');
+      }, 500);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Sign up failed.') });
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
+  async function handleLoginSubmit(event) {
+    event.preventDefault();
+
+    if (!loginForm.email.trim() || !loginForm.password.trim()) {
+      setToast({ type: 'error', message: 'Enter email and password to continue.' });
+      return;
+    }
+
+    try {
+      setIsAuthSubmitting(true);
+      const response = await loginPublicUser(loginForm);
+      const nextAuthSession = {
+        email: loginForm.email.trim(),
+        token: response?.token || response?.accessToken || '',
+        accessToken: response?.accessToken || response?.token || '',
+        refreshToken: response?.refreshToken || '',
+      };
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextAuthSession));
+      setAuthSession(nextAuthSession);
+      setToast({ type: 'success', message: response?.message || 'Login successful.' });
+      setLoginForm({
+        email: '',
+        password: '',
+      });
+      window.setTimeout(() => {
+        goTo('/');
+      }, 500);
+    } catch (error) {
+      setToast({ type: 'error', message: normalizeRequestError(error, 'Login failed.') });
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }
+
+  if (isSignupPage) {
+    return (
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <SignUpPage
           brandName={brandName}
-          product={selectedProduct}
-          isLoading={isProductDetailLoading}
+          form={signUpForm}
+          isSubmitting={isAuthSubmitting}
+          isPasswordVisible={isPasswordVisible}
+          isSidebarOpen={isSidebarOpen}
+          onChange={handleSignUpChange}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onSubmit={handleSignUpSubmit}
+          onTogglePasswordVisibility={() => setIsPasswordVisible((current) => !current)}
+          onToast={setToast}
+        />
+      </>
+    );
+  }
+
+  if (isLoginPage) {
+    return (
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <LoginPage
+          brandName={brandName}
+          form={loginForm}
+          isSubmitting={isAuthSubmitting}
+          isPasswordVisible={isPasswordVisible}
+          isSidebarOpen={isSidebarOpen}
+          onChange={handleLoginChange}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onSubmit={handleLoginSubmit}
+          onTogglePasswordVisibility={() => setIsPasswordVisible((current) => !current)}
+          onToast={setToast}
+        />
+      </>
+    );
+  }
+
+  if (isProtectedRoute && !isAuthenticated) {
+    return null;
+  }
+
+  if (isPayPage) {
+    if (!activeOrder?.orderCode) {
+      return null;
+    }
+
+    return (
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <PaymentPage
+          brandName={brandName}
+          order={activeOrder}
+          cart={cart}
+          isSidebarOpen={isSidebarOpen}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+          onOrderUpdate={(nextOrder) => {
+            setActiveOrder(nextOrder);
+            window.localStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, JSON.stringify(nextOrder));
+          }}
+          onToast={setToast}
+        />
+      </>
+    );
+  }
+
+  if (isOrdersPage) {
+    return (
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <OrdersPage
+          brandName={brandName}
+          cart={cart}
+          order={orderDetails}
+          isLoading={isOrderDetailsLoading}
           isSidebarOpen={isSidebarOpen}
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onCloseSidebar={() => setIsSidebarOpen(false)}
         />
+      </>
+    );
+  }
+
+  if (isCartPage) {
+    return (
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <CartPage
+          brandName={brandName}
+          cart={cart}
+          products={products}
+          isCartUpdating={isCartUpdating}
+          isOrderCreating={isOrderCreating}
+          isSidebarOpen={isSidebarOpen}
+          onCartQuantityChange={handleCartQuantityChange}
+          onCheckout={handleCheckout}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+        />
+      </>
+    );
+  }
+
+  if (pathname.startsWith('/products')) {
+    if (productSlug) {
+      return (
+        <>
+          {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+          <ProductDetailPage
+            brandName={brandName}
+            cart={cart}
+            product={selectedProduct}
+            isLoading={isProductDetailLoading}
+            isAddingToCart={isAddingToCart}
+            isInCart={isProductAlreadyInCart(cart, selectedProduct?.id)}
+            isSidebarOpen={isSidebarOpen}
+            onAddToCart={handleAddToCart}
+            onOpenSidebar={() => setIsSidebarOpen(true)}
+            onCloseSidebar={() => setIsSidebarOpen(false)}
+          />
+        </>
       );
     }
 
     return (
-      <ProductsPage
-        brandName={brandName}
-        products={products}
-        isLoading={isProductsLoading}
-        isSidebarOpen={isSidebarOpen}
-        onOpenSidebar={() => setIsSidebarOpen(true)}
-        onCloseSidebar={() => setIsSidebarOpen(false)}
-      />
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <ProductsPage
+          brandName={brandName}
+          cart={cart}
+          products={products}
+          isLoading={isProductsLoading}
+          isSidebarOpen={isSidebarOpen}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+        />
+      </>
     );
   }
 
   return (
-    <div className="storefront-shell">
+    <>
+      {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+      <div className="storefront-shell">
       <StorefrontSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <header className="storefront-topbar">
         <div className="storefront-topbar-inner">
           <BurgerButton onClick={() => setIsSidebarOpen(true)} />
-          <div className="storefront-wordmark">{brandName}</div>
+          <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
           <div className="storefront-topbar-actions">
             <nav className="storefront-nav">
               <a href="#hero">Home</a>
               <a href="/products">Shop</a>
               <a href="#arrivals">About</a>
             </nav>
-            <StorefrontCartBox />
+            <StorefrontCartBox cart={cart} />
           </div>
         </div>
       </header>
@@ -500,12 +1691,13 @@ function StorefrontApp() {
 
       <nav className="storefront-mobile-nav">
         <button type="button" className="is-active">Home</button>
-        <button type="button" onClick={() => { window.location.href = '/products'; }}>Shop</button>
+        <button type="button" onClick={() => { goTo('/products'); }}>Shop</button>
         <button type="button">Wishlist</button>
-        <button type="button">Cart</button>
+        <button type="button" onClick={() => { goTo('/cart'); }}>Cart</button>
         <button type="button">History</button>
       </nav>
-    </div>
+      </div>
+    </>
   );
 }
 

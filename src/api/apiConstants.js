@@ -25,6 +25,13 @@ export const FRONTEND_API = {
       update: (id) => `${API_BASE}/admin/tags/${id}/tag`,
       delete: (id) => `${API_BASE}/admin/tags/${id}/tag`,
     },
+    orders: {
+      all: `${API_BASE}/admin/orders`,
+      byId: (id) => `${API_BASE}/admin/orders/${id}`,
+      verify: `${API_BASE}/admin/orders/verify`,
+      process: `${API_BASE}/admin/orders/process`,
+      cancel: `${API_BASE}/admin/orders/cancel`,
+    },
     homepage: {
       hero: {
         all: `${API_BASE}/admin/homepage/hero`,
@@ -60,5 +67,17 @@ export const FRONTEND_API = {
     homepage: `${API_BASE}/public/homepage/home`,
     products: `${API_BASE}/public/products`,
     productBySlug: (slug) => `${API_BASE}/public/products/slug/${slug}`,
+    cart: `${API_BASE}/public/cart`,
+    cartBySession: (sessionId) => `${API_BASE}/public/cart/${sessionId}`,
+    cartItems: `${API_BASE}/public/cart/items`,
+    cartItemById: (cartItemId) => `${API_BASE}/public/cart/items/${cartItemId}`,
+    removeCartItem: (cartItemId) => `${API_BASE}/public/cart/items/${cartItemId}/remove`,
+    orders: `${API_BASE}/public/orders`,
+    orderByCode: (orderCode) => `${API_BASE}/public/orders/${orderCode}`,
+    paymentSubmission: (orderCode) => `${API_BASE}/public/orders/${orderCode}/payment-submission`,
+    auth: {
+      signup: `${API_BASE}/public/auth/signup`,
+      login: `${API_BASE}/public/auth/login`,
+    },
   },
 };
