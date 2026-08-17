@@ -13,4 +13,5 @@ export const PUBLIC_ENDPOINTS = {
   orderByCode: FRONTEND_API.public.orderByCode,
   paymentSubmission: FRONTEND_API.public.paymentSubmission,
   auth: FRONTEND_API.public.auth,
+  userProfile: FRONTEND_API.public.userProfile,
 };

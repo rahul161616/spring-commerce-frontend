@@ -47,8 +47,8 @@ export const mockStorefrontContent = {
       id: 'product-vortex-runner',
       family: 'Performance',
       title: 'Vortex Runner X1',
-      price: '$185.00',
-      compareAt: '$240.00',
+      price: 'Rs 185.00',
+      compareAt: 'Rs 240.00',
       image:
         'https://lh3.googleusercontent.com/aida-public/AB6AXuCO71zUqB-APq1tTJfdjo48IbkLcuOSbNelFEm_xL2kRWBT03SInUomM3_iYCXa7SIlwf_-oR4LtA8L7Lb-mSFlXyxfxlobSt3MPkzz8PAZPetBDAHHpImgnllfv5fH8n4KkdBvKm3Klg43eEOw0cOBpVUwUS5qfDByX40WS5WJYL37F0YfzbGx4YRIINIkEcXGw7CcKiBjtiilKy6t5IckAhi3-OJa70Cf1zZjVCv1WkBkdwNbMSnQWMq3Q912hElHsN44M3H5mqM_',
       href: '/products/vortex-runner-x1',
@@ -57,8 +57,8 @@ export const mockStorefrontContent = {
       id: 'product-cognac-tote',
       family: 'Accessories',
       title: 'Cognac Tote',
-      price: '$420.00',
-      compareAt: '$580.00',
+      price: 'Rs 420.00',
+      compareAt: 'Rs 580.00',
       image:
         'https://lh3.googleusercontent.com/aida-public/AB6AXuCQxDRVYzu-6hUk6G32eMx7jTIrRMQQ9EtMixQ5v11Y4nHklq9wlkS9XydOcdZ5LxQkIwO674JpBh6eX5WwFRSSrrwlJiHtPCeBf9h2ycst2yAK9S83GRk9VrYU1YjBeX6U3I0cM8libvsyArUU4ORpzJfY3xZlXTazAkAmgxXiiQtv4iFlwYQ6Wg2cDuJf8RZnmiFlWMadfj115PJPq826g8QjMHpezmU4RlLvndQP5dtGDjXXGJyipWTJKCgUmqNfgdG6pbZp1q-W',
       href: '/products/cognac-tote',
@@ -67,8 +67,8 @@ export const mockStorefrontContent = {
       id: 'product-orbital-earrings',
       family: 'Jewelry',
       title: 'Orbital Earrings',
-      price: '$120.00',
-      compareAt: '$195.00',
+      price: 'Rs 120.00',
+      compareAt: 'Rs 195.00',
       image:
         'https://lh3.googleusercontent.com/aida-public/AB6AXuDBWA_fYQ2IdaorZoSxgFk42v3faRFnz4aJoBeS-2I_KCwFQLrKViVVISFXLS712WSy_BNE4dnCvly3HgTJox5vAiYm_6XgOJVIcKpvgGySggR8o7no-b2_SZmNUJjmgXTvVxNdyVbBzS-ekYYqmuWIHdiEMgSFwHxzR2eSesx77fgW0h1Ap7Bxnix0VYSpRCzm8TB_E2lEG3pCh_4NBj4_93ebxoL7QMAchsbRWEN6yBVt71wnFKhucfBDK34hgI8VDWwtJyCN6Gwc',
       href: '/products/orbital-earrings',
@@ -79,7 +79,7 @@ export const mockStorefrontContent = {
       id: 'arrival-structured-oxford',
       title: 'Structured Oxford',
       family: 'Seasonal Capsule',
-      price: '$95.00',
+      price: 'Rs 95.00',
       image:
         'https://lh3.googleusercontent.com/aida-public/AB6AXuDS-62NOR6GrI2Rluv4EVmUH7zJq72m_FGu69xlu2JDUEFvqrP6dZwLzoblqfW7erR83_FreDEtJkpWNi-K7Aj8wOCH3HMJLGMqbXiLmYRWXmcyv13RECIcAD_tL1kyRl4d8PqXnuLQPRObmBD_Kwco3R2Xz59zUKV_68fq1Hii30R-7v-IQIJAYegznnNmxkQ5R-VDyQ9XUBPDSc3hclxUjjUIhFWHUfojLgH-qX4SzB2EVXFwxbGcyaMxwumnuBfBI_AjO0lSmqw-',
       href: '/products/structured-oxford',
@@ -88,7 +88,7 @@ export const mockStorefrontContent = {
       id: 'arrival-linen-slacks',
       title: 'Linen Slacks',
       family: 'Natural Fibers',
-      price: '$145.00',
+      price: 'Rs 145.00',
       image:
         'https://lh3.googleusercontent.com/aida-public/AB6AXuBiNP2DfOsUuuwHDbDTs3tJuILYQSP_xZPStMkYFTRZjCX_OjxiarUzIKMcGAfGtJ1rNsrDWYBYO3ybJl5GAO00qWlQGEfIkwSmJSq0UMheGJOlvxXmhvQoRmDFUv56g5G8OtYAdqzkKJsQzy3hmkq2UPO5iwstNd-vg6vIrCu9snvdTbwAuyPfRNxmETW4s8qov6YqfumuQ1e_B6P85EadCb1RpLgg-q7Y-QYgkyu90D8ohlGj1NUaHrUGk2Ao_iQ7-9xVhMbjhddN',
       href: '/products/linen-slacks',
@@ -97,7 +97,7 @@ export const mockStorefrontContent = {
       id: 'arrival-urban-biker',
       title: 'Urban Biker III',
       family: 'Limited Release',
-      price: '$890.00',
+      price: 'Rs 890.00',
       image:
         'https://lh3.googleusercontent.com/aida-public/AB6AXuDXkiurBHaa_6NZs9FM6-b9JmrU987TZNWbGz6y5NcjK-iQTj7Fbi1VJldxX9qkMkkXAprs4xBNOpuWLM0yiv-uW97JnAZsrSBQZVSDuwN5fUFe7GWvT0_iQIrrDzJLmuV5cbQk6FLhlNrC7IduxtNbpeSOIDonkC-kPK74-RdJD2vhISsrXFzSbgl_V6ZXfPLl34B5JfDBvshhwqg7DWpIfKvAx9a7MEoFhKUErbFVdXIuiBCRbFOs0g_q51yA5d3t4_OETkW2Ugz8',
       href: '/products/urban-biker-iii',

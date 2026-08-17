@@ -162,3 +162,32 @@ export async function loginPublicUser({ email, password }) {
     }),
   });
 }
+
+export async function refreshPublicToken(refreshToken) {
+  return publicRequest(PUBLIC_ENDPOINTS.auth.refresh, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      refreshToken,
+    }),
+  });
+}
+
+export async function fetchOwnProfile() {
+  return publicRequest(PUBLIC_ENDPOINTS.userProfile.me, {
+    auth: true,
+  });
+}
+
+export async function updateOwnProfile(payload) {
+  return publicRequest(PUBLIC_ENDPOINTS.userProfile.me, {
+    method: 'PATCH',
+    auth: true,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+}

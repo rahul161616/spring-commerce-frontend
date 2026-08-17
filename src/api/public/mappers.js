@@ -8,7 +8,7 @@ function formatMoney(value) {
     return String(value);
   }
 
-  return `$${amount.toFixed(2)}`;
+  return `Rs ${amount.toFixed(2)}`;
 }
 
 function toNumber(value) {
@@ -26,7 +26,7 @@ function mapHeroSlide(item, index) {
     eyebrow: item.eyebrow || item.badge || 'Featured',
     title: item.title || item.name || 'Editorial Drop',
     ctaLabel: item.ctaLabel || item.cta || 'Explore',
-    href: item.href || '#collections',
+    href: item.href || item.ctaUrl || '#collections',
     image: item.image || item.imageUrl || '',
   };
 }
@@ -47,10 +47,10 @@ function mapMerchCard(item, index) {
     id: item.id || `product-card-${index}`,
     family: item.family || item.categoryName || 'Collection',
     title: item.title || item.name || 'Untitled piece',
-    price: formatMoney(item.price) || item.priceLabel || '$0.00',
+    price: formatMoney(item.price) || item.priceLabel || 'Rs 0.00',
     compareAt: formatMoney(item.compareAtPrice || item.compareAt || item.originalPrice),
     image: item.image || item.imageUrl || item.primaryImageUrl || '',
-    href: item.href || item.slug || '#',
+    href: item.href || (item.slug ? `/products/${item.slug}` : '#'),
   };
 }
 
@@ -61,7 +61,7 @@ function mapCatalogProduct(item, index) {
     categoryName: item.categoryName || 'Collection',
     shortDescription: item.shortDescription || item.description || 'Public product details will appear here.',
     description: item.description || item.shortDescription || '',
-    price: formatMoney(item.price) || '$0.00',
+    price: formatMoney(item.price) || 'Rs 0.00',
     compareAt: formatMoney(item.compareAtPrice || item.compareAt || item.originalPrice),
     image: item.image || item.imageUrl || item.primaryImageUrl || '',
     slug: item.slug || '',
@@ -116,8 +116,8 @@ export function mapCartPayload(payload = {}) {
         lineSubtotal: toNumber(item.lineSubtotal),
         lineDiscount: toNumber(item.lineDiscount),
         lineTotal: toNumber(item.lineTotal),
-        priceLabel: formatMoney(item.unitPrice) || '$0.00',
-        lineTotalLabel: formatMoney(item.lineTotal) || '$0.00',
+        priceLabel: formatMoney(item.unitPrice) || 'Rs 0.00',
+        lineTotalLabel: formatMoney(item.lineTotal) || 'Rs 0.00',
       }))
     : [];
 
@@ -132,8 +132,8 @@ export function mapCartPayload(payload = {}) {
     taxAmount: toNumber(payload.taxAmount),
     shippingAmount: toNumber(payload.shippingAmount),
     grandTotalAmount: toNumber(payload.grandTotalAmount),
-    subtotalLabel: formatMoney(payload.subtotalAmount) || '$0.00',
-    grandTotalLabel: formatMoney(payload.grandTotalAmount) || '$0.00',
+    subtotalLabel: formatMoney(payload.subtotalAmount) || 'Rs 0.00',
+    grandTotalLabel: formatMoney(payload.grandTotalAmount) || 'Rs 0.00',
     items,
   };
 }
@@ -152,7 +152,7 @@ export function mapOrderPayload(payload = {}) {
     taxAmount: toNumber(payload.taxAmount),
     shippingAmount: toNumber(payload.shippingAmount),
     grandTotalAmount: toNumber(payload.grandTotalAmount),
-    grandTotalLabel: formatMoney(payload.grandTotalAmount) || '$0.00',
+    grandTotalLabel: formatMoney(payload.grandTotalAmount) || 'Rs 0.00',
     status: payload.status || 'PENDING_PAYMENT',
     itemCount: Number(payload.itemCount || 0),
     notes: payload.notes || '',
@@ -172,7 +172,7 @@ export function mapPaymentSubmissionPayload(payload = {}) {
     remarks: payload.remarks || '',
     verificationStatus: payload.verificationStatus || 'PENDING',
     submittedAt: payload.submittedAt || null,
-    expectedAmountLabel: formatMoney(payload.expectedAmount) || '$0.00',
-    paidAmountLabel: formatMoney(payload.paidAmount) || '$0.00',
+    expectedAmountLabel: formatMoney(payload.expectedAmount) || 'Rs 0.00',
+    paidAmountLabel: formatMoney(payload.paidAmount) || 'Rs 0.00',
   };
 }

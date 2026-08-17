@@ -78,6 +78,10 @@ export const FRONTEND_API = {
     auth: {
       signup: `${API_BASE}/public/auth/signup`,
       login: `${API_BASE}/public/auth/login`,
+      refresh: `${API_BASE}/public/auth/refresh`,
+    },
+    userProfile: {
+      me: `${API_BASE}/public/user-profile/me`,
     },
   },
 };

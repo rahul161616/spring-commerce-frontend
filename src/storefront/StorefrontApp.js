@@ -6,11 +6,13 @@ import {
   fetchPublicOrderByCode,
   fetchPublicProductBySlug,
   fetchPublicProducts,
+  fetchOwnProfile,
   fetchStorefrontContent,
   loginPublicUser,
   removeCartItem,
   signUpPublicUser,
   submitPaymentSubmission,
+  updateOwnProfile,
   updateCartItemQuantity,
 } from '../api/public/storefront';
 import Toast from '../components/shared/Toast';
@@ -63,7 +65,32 @@ function getAuthNoticeFromReason(reason) {
     return 'Login first to access the storefront.';
   }
 
+  if (reason === 'session-expired') {
+    return 'Your session expired. Login again to continue.';
+  }
+
   return '';
+}
+
+function isAuthExpiredError(error) {
+  return error?.code === 'AUTH_EXPIRED';
+}
+
+function hasText(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isProfileComplete(profile) {
+  return Boolean(profile && hasText(profile.name) && hasText(profile.phone) && hasText(profile.address));
+}
+
+function buildProfileForm(profile) {
+  return {
+    name: profile?.name || '',
+    phone: profile?.phone || '',
+    address: profile?.address || '',
+    imageUrl: profile?.imageUrl || '',
+  };
 }
 
 function StorefrontSidebar({ isOpen, onClose }) {
@@ -78,7 +105,7 @@ function StorefrontSidebar({ isOpen, onClose }) {
           </button>
         </div>
         <nav className="storefront-sidebar-nav">
-          <button type="button">Profile</button>
+          <button type="button" onClick={() => goTo('/profile')}>Profile</button>
           <button type="button">Settings</button>
           <button type="button">History</button>
           <button type="button">Wishlist</button>
@@ -339,6 +366,163 @@ function LoginPage({
       <button type="button" className="storefront-auth-mobile-menu" onClick={onOpenSidebar} aria-label="Open menu">
         Menu
       </button>
+    </div>
+  );
+}
+
+function ProfilePage({
+  brandName,
+  cart,
+  profile,
+  isEditing,
+  isLoading,
+  isSaving,
+  form,
+  isSidebarOpen,
+  onChange,
+  onOpenSidebar,
+  onCloseSidebar,
+  onCancelEdit,
+  onCompleteProfile,
+  onLogout,
+  onSubmit,
+}) {
+  return (
+    <div className="storefront-shell">
+      <StorefrontSidebar isOpen={isSidebarOpen} onClose={onCloseSidebar} />
+      <header className="storefront-topbar">
+        <div className="storefront-topbar-inner">
+          <BurgerButton onClick={onOpenSidebar} />
+          <button type="button" className="storefront-wordmark" onClick={() => goTo('/')}>{brandName}</button>
+          <div className="storefront-topbar-actions">
+            <StorefrontCartBox cart={cart} />
+          </div>
+        </div>
+      </header>
+
+      <main className="storefront-main storefront-orders-page">
+        <section className="storefront-orders-hero">
+          <h1>My Profile</h1>
+          <p>Review your account details connected to this storefront session.</p>
+        </section>
+
+        {isLoading ? (
+          <section className="storefront-orders-card">
+            <span className="skeleton-line short" />
+            <span className="skeleton-line medium" />
+            <span className="skeleton-line" />
+            <span className="skeleton-line medium" />
+          </section>
+        ) : (
+          <section className="storefront-orders-card">
+            <div className="storefront-orders-card-head">
+              <div>
+                <span className="storefront-orders-code">Account</span>
+                <h2>{isEditing ? 'Complete Profile' : profile?.name || 'Unnamed User'}</h2>
+              </div>
+              <div className="storefront-orders-side">
+                <span className="storefront-orders-pill">Member</span>
+              </div>
+            </div>
+
+            {isEditing ? (
+              <form className="storefront-auth-form" onSubmit={onSubmit}>
+                <label className="storefront-auth-field">
+                  <span>Full Name</span>
+                  <input
+                    name="name"
+                    type="text"
+                    value={form.name}
+                    onChange={onChange}
+                    placeholder="Your full name"
+                  />
+                </label>
+
+                <label className="storefront-auth-field">
+                  <span>Phone</span>
+                  <input
+                    name="phone"
+                    type="text"
+                    value={form.phone}
+                    onChange={onChange}
+                    placeholder="98XXXXXXXX"
+                  />
+                </label>
+
+                <label className="storefront-auth-field">
+                  <span>Address</span>
+                  <input
+                    name="address"
+                    type="text"
+                    value={form.address}
+                    onChange={onChange}
+                    placeholder="Your address"
+                  />
+                </label>
+
+                <label className="storefront-auth-field">
+                  <span>Image URL</span>
+                  <input
+                    name="imageUrl"
+                    type="text"
+                    value={form.imageUrl}
+                    onChange={onChange}
+                    placeholder="/uploads/profile/avatar.png"
+                  />
+                </label>
+
+                <div className="storefront-detail-actions">
+                  <button type="button" className="storefront-detail-secondary" onClick={onCancelEdit}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="storefront-detail-primary" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Profile'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="storefront-orders-grid">
+                <article>
+                  <span>Name</span>
+                  <strong>{profile?.name || 'Not available'}</strong>
+                </article>
+                <article>
+                  <span>Email</span>
+                  <strong>{profile?.email || 'Not available'}</strong>
+                </article>
+                <article>
+                  <span>Phone</span>
+                  <strong>{profile?.phone || 'Not available'}</strong>
+                </article>
+                <article>
+                  <span>Address</span>
+                  <strong>{profile?.address || 'Not available'}</strong>
+                </article>
+              </div>
+            )}
+
+            <div className="storefront-detail-actions">
+              <button type="button" className="storefront-detail-secondary" onClick={() => goTo('/')}>
+                Back To Home
+              </button>
+              <button type="button" className="storefront-detail-secondary" onClick={onCompleteProfile}>
+                Complete My Profile
+              </button>
+              <button type="button" className="storefront-detail-primary" onClick={onLogout}>
+                Logout
+              </button>
+            </div>
+          </section>
+        )}
+      </main>
+
+      <nav className="storefront-mobile-nav">
+        <button type="button" onClick={() => { goTo('/'); }}>Home</button>
+        <button type="button" onClick={() => { goTo('/products'); }}>Shop</button>
+        <button type="button" onClick={() => { goTo('/cart'); }}>Cart</button>
+        <button type="button" className="is-active">Profile</button>
+        <button type="button" onClick={onLogout}>Logout</button>
+      </nav>
     </div>
   );
 }
@@ -719,7 +903,7 @@ function CartPage({
           <div className="storefront-cart-summary-head">
             <div>
               <span>Estimated Total</span>
-              <strong>{cart?.grandTotalLabel || '$0.00'}</strong>
+              <strong>{cart?.grandTotalLabel || 'Rs 0.00'}</strong>
             </div>
             <div className="storefront-cart-summary-note">
               <p>Taxes and Shipping</p>
@@ -793,7 +977,7 @@ function PaymentPage({ brandName, order, cart, isSidebarOpen, onOpenSidebar, onC
       <main className="storefront-main storefront-pay-page">
         <section className="storefront-pay-summary">
           <span className="storefront-pay-kicker">Checkout Summary</span>
-          <h2>{order?.grandTotalLabel || '$0.00'}</h2>
+          <h2>{order?.grandTotalLabel || 'Rs 0.00'}</h2>
           <p>Order #{order?.orderCode || 'AT-00000'}</p>
         </section>
 
@@ -1102,6 +1286,17 @@ function StorefrontApp() {
   const [activeOrder, setActiveOrder] = useState(null);
   const [orderDetails, setOrderDetails] = useState(null);
   const [isOrderDetailsLoading, setIsOrderDetailsLoading] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isPaymentProfileChecking, setIsPaymentProfileChecking] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    imageUrl: '',
+  });
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isCartUpdating, setIsCartUpdating] = useState(false);
   const [isOrderCreating, setIsOrderCreating] = useState(false);
@@ -1126,6 +1321,7 @@ function StorefrontApp() {
   const isPayPage = pathname === '/pay';
   const isSignupPage = pathname === '/signup';
   const isLoginPage = pathname === '/login';
+  const isProfilePage = pathname === '/profile';
   const orderCode = pathname.startsWith('/orders/') ? pathname.replace('/orders/', '') : null;
   const isOrdersPage = Boolean(orderCode);
   const productSlug = pathname.startsWith('/products/') ? pathname.replace('/products/', '') : null;
@@ -1170,6 +1366,16 @@ function StorefrontApp() {
       window.history.replaceState({}, '', '/login');
     }
   }, [authReason, isLoginPage]);
+
+  useEffect(() => {
+    if (!isProfilePage || authReason !== 'profile-required') {
+      return;
+    }
+
+    setIsProfileEditing(true);
+    setToast({ type: 'error', message: 'Complete your profile before proceeding to payment.' });
+    window.history.replaceState({}, '', '/profile');
+  }, [authReason, isProfilePage]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1268,6 +1474,83 @@ function StorefrontApp() {
   }, [orderCode]);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadOwnProfile() {
+      if (!isProfilePage || !isAuthenticated) {
+        setProfile(null);
+        setIsProfileLoading(false);
+        return;
+      }
+
+      try {
+        setIsProfileLoading(true);
+        const nextProfile = await fetchOwnProfile();
+        if (isMounted) {
+          setProfile(nextProfile || null);
+          setProfileForm(buildProfileForm(nextProfile));
+          setIsProfileLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setProfile(null);
+          setIsProfileLoading(false);
+          if (!isAuthExpiredError(error)) {
+            setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to load your profile.') });
+          }
+        }
+      }
+    }
+
+    loadOwnProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated, isProfilePage]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function guardPaymentProfile() {
+      if (!isPayPage || !isAuthenticated || !activeOrder?.orderCode) {
+        setIsPaymentProfileChecking(false);
+        return;
+      }
+
+      try {
+        setIsPaymentProfileChecking(true);
+        const nextProfile = await fetchOwnProfile();
+        if (!isMounted) {
+          return;
+        }
+
+        setProfile(nextProfile || null);
+        setProfileForm(buildProfileForm(nextProfile));
+
+        if (!isProfileComplete(nextProfile)) {
+          setIsProfileEditing(true);
+          goTo('/profile?reason=profile-required');
+          return;
+        }
+
+        setIsPaymentProfileChecking(false);
+      } catch (error) {
+        if (isMounted && !isAuthExpiredError(error)) {
+          setIsPaymentProfileChecking(false);
+          setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to verify your profile.') });
+        }
+      }
+    }
+
+    guardPaymentProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeOrder?.orderCode, isAuthenticated, isPayPage]);
+
+  useEffect(() => {
     if (!isPayPage || isLoading) {
       return;
     }
@@ -1329,6 +1612,17 @@ function StorefrontApp() {
 
     try {
       setIsOrderCreating(true);
+      const nextProfile = await fetchOwnProfile();
+      setProfile(nextProfile || null);
+      setProfileForm(buildProfileForm(nextProfile));
+
+      if (!isProfileComplete(nextProfile)) {
+        setIsProfileEditing(true);
+        setToast({ type: 'error', message: 'Complete your profile before proceeding to payment.' });
+        goTo('/profile?reason=profile-required');
+        return;
+      }
+
       const sessionId = getCartSessionId();
       const nextOrder = await createPublicOrder({ sessionId });
       setActiveOrder(nextOrder);
@@ -1416,6 +1710,46 @@ function StorefrontApp() {
     }
   }
 
+  function handleLogout() {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+    window.localStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+    setAuthSession(null);
+    setProfile(null);
+    goTo('/login');
+  }
+
+  function handleProfileChange(event) {
+    const { name, value } = event.target;
+    setProfileForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  }
+
+  function handleCompleteProfile() {
+    setProfileForm(buildProfileForm(profile));
+    setIsProfileEditing(true);
+  }
+
+  async function handleProfileSubmit(event) {
+    event.preventDefault();
+
+    try {
+      setIsProfileSaving(true);
+      const nextProfile = await updateOwnProfile(profileForm);
+      setProfile(nextProfile || null);
+      setProfileForm(buildProfileForm(nextProfile));
+      setIsProfileEditing(false);
+      setToast({ type: 'success', message: 'Profile updated successfully.' });
+    } catch (error) {
+      if (!isAuthExpiredError(error)) {
+        setToast({ type: 'error', message: normalizeRequestError(error, 'Failed to update your profile.') });
+      }
+    } finally {
+      setIsProfileSaving(false);
+    }
+  }
+
   if (isSignupPage) {
     return (
       <>
@@ -1462,8 +1796,33 @@ function StorefrontApp() {
     return null;
   }
 
+  if (isProfilePage) {
+    return (
+      <>
+        {toast ? <Toast type={toast.type} message={toast.message} /> : null}
+        <ProfilePage
+          brandName={brandName}
+          cart={cart}
+          profile={profile}
+          isEditing={isProfileEditing}
+          isLoading={isProfileLoading}
+          isSaving={isProfileSaving}
+          form={profileForm}
+          isSidebarOpen={isSidebarOpen}
+          onChange={handleProfileChange}
+          onOpenSidebar={() => setIsSidebarOpen(true)}
+          onCloseSidebar={() => setIsSidebarOpen(false)}
+          onCancelEdit={() => setIsProfileEditing(false)}
+          onCompleteProfile={handleCompleteProfile}
+          onLogout={handleLogout}
+          onSubmit={handleProfileSubmit}
+        />
+      </>
+    );
+  }
+
   if (isPayPage) {
-    if (!activeOrder?.orderCode) {
+    if (!activeOrder?.orderCode || isPaymentProfileChecking || !isProfileComplete(profile)) {
       return null;
     }
 
@@ -1632,10 +1991,9 @@ function StorefrontApp() {
           </div>
           <div className="storefront-scroll-row">
             {trendingItems.map((item) => (
-              <article key={item.title} className="storefront-product-card">
+              <a key={item.title} href={item.href} className="storefront-product-card storefront-home-product-link">
                 <div className="storefront-product-image-wrap">
                   <img src={item.image} alt={item.title} />
-                  <button type="button" className="storefront-favorite">Like</button>
                 </div>
                 <div className="storefront-product-meta">
                   <div>
@@ -1647,7 +2005,7 @@ function StorefrontApp() {
                     {item.compareAt && item.compareAt !== item.price ? <span>{item.compareAt}</span> : null}
                   </div>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
         </section>
@@ -1662,7 +2020,7 @@ function StorefrontApp() {
           </div>
           <div className="storefront-scroll-row">
             {arrivals.map((item) => (
-              <article key={item.title} className="storefront-arrival-card">
+              <a key={item.title} href={item.href} className="storefront-arrival-card storefront-home-product-link">
                 <div className="storefront-arrival-image-wrap">
                   <img src={item.image} alt={item.title} />
                 </div>
@@ -1671,19 +2029,33 @@ function StorefrontApp() {
                   <p>{item.family}</p>
                   <strong>{item.price}</strong>
                 </div>
-              </article>
+              </a>
             ))}
           </div>
         </section>
 
         <section className="storefront-newsletter">
           <div className="storefront-newsletter-card">
-            <span className="storefront-newsletter-icon">Mail</span>
-            <h2>Join The Circle</h2>
-            <p>Get early access to drops, exclusive lookbooks, and invitations to our gallery events.</p>
-            <div className="storefront-newsletter-form">
-              <input type="email" placeholder="Your email address" />
-              <button type="button">Subscribe</button>
+            <span className="storefront-newsletter-icon">Contact</span>
+            <h2>Contact Info</h2>
+            <p>Reach us directly for product questions, order support, and collaboration inquiries.</p>
+            <div className="storefront-contact-grid">
+              <a href="mailto:rahulsewa1616@gmail.com">
+                <span>Email</span>
+                <strong>rahulsewa1616@gmail.com</strong>
+              </a>
+              <a href="tel:9815158185">
+                <span>Phone</span>
+                <strong>9815158185</strong>
+              </a>
+              <a href="https://www.instagram.com/rahulsewa07/?hl=en" target="_blank" rel="noreferrer">
+                <span>Instagram</span>
+                <strong>@rahulsewa07</strong>
+              </a>
+              <a href="https://www.facebook.com/ra.hul.509643/" target="_blank" rel="noreferrer">
+                <span>Facebook</span>
+                <strong>ra.hul.509643</strong>
+              </a>
             </div>
           </div>
         </section>

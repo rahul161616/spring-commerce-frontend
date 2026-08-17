@@ -46,6 +46,7 @@ import {
 import { FRONTEND_API } from './api/apiConstants';
 
 const AUTH_STORAGE_KEYS = ['admin_auth_session', 'storefront_auth_session'];
+let adminRefreshPromise = null;
 
 function parseJwtPayload(token) {
   if (!token) {
@@ -190,7 +191,10 @@ function App() {
         const token = parsed?.accessToken || parsed?.token || '';
         if (token) {
           return {
+            storageKey,
+            session: parsed,
             token,
+            refreshToken: parsed?.refreshToken || '',
             payload: parseJwtPayload(token),
           };
         }
@@ -202,6 +206,53 @@ function App() {
     return null;
   }, []);
 
+  const refreshAuthSession = useCallback(async () => {
+    if (adminRefreshPromise) {
+      return adminRefreshPromise;
+    }
+
+    const authSession = getAuthSession();
+    if (!authSession?.refreshToken) {
+      throw new Error('No refresh token is available.');
+    }
+
+    adminRefreshPromise = (async () => {
+      const response = await fetch(FRONTEND_API.public.auth.refresh, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          refreshToken: authSession.refreshToken,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json() : null;
+
+      if (!response.ok || !data?.accessToken) {
+        window.localStorage.removeItem(authSession.storageKey);
+        throw new Error(data?.message || 'Session refresh failed.');
+      }
+
+      const nextSession = {
+        ...(authSession.session || {}),
+        token: data.accessToken,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken || authSession.refreshToken,
+      };
+
+      window.localStorage.setItem(authSession.storageKey, JSON.stringify(nextSession));
+      return data.accessToken;
+    })();
+
+    try {
+      return await adminRefreshPromise;
+    } finally {
+      adminRefreshPromise = null;
+    }
+  }, [getAuthSession]);
+
   const getAccessToken = useCallback(() => getAuthSession()?.token || '', [getAuthSession]);
 
   const hasAdminAccess = useMemo(() => {
@@ -211,7 +262,7 @@ function App() {
   }, [getAuthSession]);
   const isAuthenticated = Boolean(getAccessToken());
 
-  const authFetch = useCallback(async (url, options = {}) => {
+  const authFetch = useCallback(async (url, options = {}, hasRetried = false) => {
     const token = getAccessToken();
     const headers = {
       ...(options.headers || {}),
@@ -221,11 +272,22 @@ function App() {
       headers.Authorization = `Bearer ${token}`;
     }
 
-    return fetch(url, {
+    const response = await fetch(url, {
       ...options,
       headers,
     });
-  }, [getAccessToken]);
+
+    if ((response.status === 401 || response.status === 403) && !hasRetried) {
+      try {
+        await refreshAuthSession();
+        return authFetch(url, options, true);
+      } catch (error) {
+        return response;
+      }
+    }
+
+    return response;
+  }, [getAccessToken, refreshAuthSession]);
 
   const fetchJson = useCallback(async (url, fallbackMessage) => {
     let response;
@@ -1135,8 +1197,8 @@ function App() {
       { label: 'Label', value: trendingProduct.label || 'Not set' },
       { label: 'Linked Product', value: linkedProduct?.name || trendingProduct.productId || 'Missing' },
       { label: 'Category', value: linkedProduct?.category || 'Not set' },
-        { label: 'Price', value: linkedProduct ? `$${Number(linkedProduct.price || 0).toFixed(2)}` : 'Not set' },
-        { label: 'Compare-at', value: linkedProduct?.compareAt > 0 ? `$${Number(linkedProduct.compareAt).toFixed(2)}` : 'Not set' },
+        { label: 'Price', value: linkedProduct ? `Rs ${Number(linkedProduct.price || 0).toFixed(2)}` : 'Not set' },
+        { label: 'Compare-at', value: linkedProduct?.compareAt > 0 ? `Rs ${Number(linkedProduct.compareAt).toFixed(2)}` : 'Not set' },
         { label: 'State', value: trendingProduct.isActive ? 'Active' : 'Inactive' },
         { label: 'Order', value: trendingProduct.displayOrder ?? 'Not set' },
       ], [

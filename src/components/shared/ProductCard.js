@@ -29,9 +29,9 @@ function ProductCard({ onSelect, product }) {
             <p>{product.description?.trim() ? product.description : 'No description provided.'}</p>
           </div>
           <div className="price-block">
-            <strong>${product.price.toFixed(2)}</strong>
+            <strong>Rs {product.price.toFixed(2)}</strong>
             {product.compareAt > product.price ? (
-              <small className="price-compare">${product.compareAt.toFixed(2)}</small>
+              <small className="price-compare">Rs {product.compareAt.toFixed(2)}</small>
             ) : null}
             <span className={`status-pill ${status.className}`}>{status.label}</span>
           </div>

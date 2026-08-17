@@ -115,9 +115,9 @@ function ProductDetailsModal({ isLoading, isUpdatingStatus, onClose, onDelete, o
               </div>
 
               <div className="detail-price-block">
-                <div className="detail-price">${product.price.toFixed(2)}</div>
+                <div className="detail-price">Rs {product.price.toFixed(2)}</div>
                 {product.compareAt > product.price ? (
-                  <div className="detail-compare-price">${product.compareAt.toFixed(2)}</div>
+                  <div className="detail-compare-price">Rs {product.compareAt.toFixed(2)}</div>
                 ) : null}
               </div>
 
@@ -129,7 +129,7 @@ function ProductDetailsModal({ isLoading, isUpdatingStatus, onClose, onDelete, o
               <div className="detail-grid">
                 <div className="detail-field">
                   <span>Compare-at Price</span>
-                  <strong>{product.compareAt > 0 ? `$${product.compareAt.toFixed(2)}` : 'Not set'}</strong>
+                  <strong>{product.compareAt > 0 ? `Rs ${product.compareAt.toFixed(2)}` : 'Not set'}</strong>
                 </div>
                 <div className="detail-field">
                   <span>Stock Quantity</span>
