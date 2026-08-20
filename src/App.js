@@ -46,6 +46,14 @@ import {
 import { FRONTEND_API } from './api/apiConstants';
 
 const AUTH_STORAGE_KEYS = ['admin_auth_session', 'storefront_auth_session'];
+const PRODUCT_STATUS_FILTERS = [
+  { id: 'ALL', label: 'All' },
+  { id: 'ACTIVE', label: 'Active' },
+  { id: 'INACTIVE', label: 'Inactive' },
+  { id: 'DRAFT', label: 'Draft' },
+  { id: 'ARCHIVED', label: 'Archived' },
+];
+
 let adminRefreshPromise = null;
 
 function parseJwtPayload(token) {
@@ -92,14 +100,6 @@ function AdminAccessGate({ isAuthenticated, onGoLogin, onGoStorefront }) {
 }
 
 function App() {
-  const PRODUCT_STATUS_FILTERS = [
-    { id: 'ALL', label: 'All' },
-    { id: 'ACTIVE', label: 'Active' },
-    { id: 'INACTIVE', label: 'Inactive' },
-    { id: 'DRAFT', label: 'Draft' },
-    { id: 'ARCHIVED', label: 'Archived' },
-  ];
-
   const [activeView, setActiveView] = useState(() => window.localStorage.getItem('spring-commerce-active-view') || 'products');
   const [activeProductStatusFilter, setActiveProductStatusFilter] = useState(
     () => window.localStorage.getItem('spring-commerce-product-status-filter') || 'ALL',

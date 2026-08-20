@@ -1,4 +1,19 @@
-const API_BASE = '/api/v1';
+const DEFAULT_PROD_API_ORIGIN = 'https://spring-commerce.onrender.com';
+
+function resolveApiOrigin() {
+  const configuredOrigin = (process.env.REACT_APP_API_ORIGIN || '').trim();
+  if (configuredOrigin) {
+    return configuredOrigin.replace(/\/$/, '');
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    return '';
+  }
+
+  return DEFAULT_PROD_API_ORIGIN;
+}
+
+const API_BASE = `${resolveApiOrigin()}/api/v1`;
 
 export const FRONTEND_API = {
   admin: {

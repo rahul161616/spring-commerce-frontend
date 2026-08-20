@@ -65,6 +65,19 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/a
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
 
+## Deploying to Vercel
+
+This app is configured for Vercel static hosting with SPA rewrites.
+
+1. Import this repository in Vercel.
+2. Keep the default build command: `npm run build`.
+3. Keep the default output directory: `build`.
+4. Add environment variable `REACT_APP_API_ORIGIN` with value `https://spring-commerce.onrender.com`.
+
+Notes:
+- In local development (`npm start`), the app still uses the Create React App proxy to `http://localhost:8088`.
+- In production builds, API requests target `https://spring-commerce.onrender.com/api/v1` by default.
+
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
