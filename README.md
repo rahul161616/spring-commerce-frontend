@@ -72,11 +72,12 @@ This app is configured for Vercel static hosting with SPA rewrites.
 1. Import this repository in Vercel.
 2. Keep the default build command: `npm run build`.
 3. Keep the default output directory: `build`.
-4. Add environment variable `REACT_APP_API_ORIGIN` with value `https://spring-commerce.onrender.com`.
+4. Do not set `REACT_APP_API_ORIGIN` for Vercel unless you intentionally want direct cross-origin browser calls.
 
 Notes:
 - In local development (`npm start`), the app still uses the Create React App proxy to `http://localhost:8088`.
-- In production builds, API requests target `https://spring-commerce.onrender.com/api/v1` by default.
+- In production on Vercel, browser requests use same-origin `/api/v1/...`, and Vercel rewrites proxy them to `https://spring-commerce.onrender.com/api/v1/...`.
+- If you set `REACT_APP_API_ORIGIN`, the app will call that origin directly from the browser and that target must allow CORS.
 
 ### `npm run build` fails to minify
 
