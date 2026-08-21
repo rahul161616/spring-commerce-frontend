@@ -157,7 +157,7 @@ export async function loginPublicUser({ email, password }) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      email,
+      email: email.trim(),
       password,
     }),
   });
